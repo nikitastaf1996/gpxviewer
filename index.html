@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple GPX Viewer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        #controls {
+            padding: 1rem;
+            background-color: #f4f4f4;
+            border-bottom: 1px solid #ddd;
+        }
+        #stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            padding: 1rem;
+            background-color: #fff;
+        }
+        .stat-item {
+            border: 1px solid #eee;
+            padding: 0.5rem;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: #666;
+            display: block;
+        }
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        #map {
+            flex-grow: 1;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>GPX Viewer for Runners</h1>
+</header>
+
+<div id="controls">
+    <input type="file" id="gpx-file" accept=".gpx" />
+</div>
+
+<div id="stats">
+    <div class="stat-item">
+        <span class="stat-label">Distance</span>
+        <span id="distance" class="stat-value">-</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-label">Total Time</span>
+        <span id="duration" class="stat-value">-</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-label">Pace</span>
+        <span id="pace" class="stat-value">-</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-label">Elevation Gain</span>
+        <span id="elevation-gain" class="stat-value">-</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-label">Elevation Loss</span>
+        <span id="elevation-loss" class="stat-value">-</span>
+    </div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/2.1.0/gpx.min.js"></script>
+
+<script>
+    var map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    var currentTrack;
+
+    document.getElementById('gpx-file').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var gpxData = e.target.result;
+            displayGpx(gpxData);
+        };
+        reader.readAsText(file);
+    });
+
+    function displayGpx(gpxData) {
+        if (currentTrack) {
+            map.removeLayer(currentTrack);
+        }
+
+        currentTrack = new L.GPX(gpxData, {
+            async: true,
+            marker_options: {
+                startIconUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-icon-start.png',
+                endIconUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-icon-end.png',
+                shadowUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-shadow.png'
+            }
+        }).on('loaded', function(e) {
+            var gpx = e.target;
+            map.fitBounds(gpx.getBounds());
+
+            // Distance in km
+            var distKm = gpx.get_distance() / 1000;
+            document.getElementById('distance').textContent = distKm.toFixed(2) + " km";
+
+            // Duration
+            var durationMs = gpx.get_total_time();
+            document.getElementById('duration').textContent = formatDuration(durationMs);
+
+            // Pace (min/km)
+            if (distKm > 0) {
+                var paceMinPerKm = (durationMs / 1000 / 60) / distKm;
+                document.getElementById('pace').textContent = formatPace(paceMinPerKm);
+            } else {
+                document.getElementById('pace').textContent = "-";
+            }
+
+            // Elevation
+            document.getElementById('elevation-gain').textContent = gpx.get_elevation_gain().toFixed(0) + " m";
+            document.getElementById('elevation-loss').textContent = gpx.get_elevation_loss().toFixed(0) + " m";
+
+        }).addTo(map);
+    }
+
+    function formatDuration(ms) {
+        var s = Math.floor(ms / 1000);
+        var h = Math.floor(s / 3600);
+        s %= 3600;
+        var m = Math.floor(s / 60);
+        s %= 60;
+
+        var res = "";
+        if (h > 0) res += h + "h ";
+        res += m + "m " + s + "s";
+        return res;
+    }
+
+    function formatPace(minPerKm) {
+        var min = Math.floor(minPerKm);
+        var sec = Math.round((minPerKm - min) * 60);
+        if (sec === 60) {
+            min++;
+            sec = 0;
+        }
+        return min + ":" + (sec < 10 ? "0" : "") + sec + " /km";
+    }
+</script>
+
+</body>
+</html>

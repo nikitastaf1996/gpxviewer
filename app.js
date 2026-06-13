@@ -43,8 +43,6 @@ function createPaceChart(data) {
 
     var ctx = document.getElementById('pace-chart').getContext('2d');
 
-    // For precision ribbon
-
     charts.pace = new Chart(ctx, {
         type: 'line',
         data: {
@@ -125,7 +123,7 @@ function createSplitsChart(data, points) {
     for (var i = 0; i < data.length; i++) {
         if (data[i].dist >= nextSplit || i === data.length - 1) {
             var dDist = data[i].dist - splitStartDist;
-            var dTime = (data[i].time - splitStartTime) / 1000 / 60; // min
+            var dTime = (points[i].time - splitStartTime) / 1000 / 60; // min
             if (dDist > 0.1) { // Avoid tiny splits at the end
                 splits.push({
                     label: "Split " + (splits.length + 1),
@@ -308,25 +306,49 @@ function renderSidebar() {
 }
 
 var sidebar = document.getElementById('sidebar');
+var chartsSidebar = document.getElementById('charts-sidebar');
 var overlay = document.getElementById('sidebar-overlay');
 var menuToggleBtn = document.getElementById('menu-toggle');
+var chartsToggleBtn = document.getElementById('charts-toggle');
 
 function toggleSidebar() {
     sidebar.classList.toggle('active');
-    overlay.classList.toggle('active');
+    updateOverlay();
+}
+
+function toggleChartsSidebar() {
+    chartsSidebar.classList.toggle('active');
+    updateOverlay();
+    if (chartsSidebar.classList.contains('active')) {
+        // Trigger resize for charts to fit container
+        Object.values(charts).forEach(chart => chart.resize());
+    }
+}
+
+function updateOverlay() {
+    if (sidebar.classList.contains('active') || chartsSidebar.classList.contains('active')) {
+        overlay.classList.add('active');
+    } else {
+        overlay.classList.remove('active');
+    }
+}
+
+function closeSidebars() {
+    sidebar.classList.remove('active');
+    chartsSidebar.classList.remove('active');
+    updateOverlay();
 }
 
 if (menuToggleBtn) menuToggleBtn.addEventListener('click', toggleSidebar);
-if (overlay) overlay.addEventListener('click', toggleSidebar);
+if (chartsToggleBtn) chartsToggleBtn.addEventListener('click', toggleChartsSidebar);
+if (overlay) overlay.addEventListener('click', closeSidebars);
 
 // Initial render
 renderSidebar();
 
 function displayGpx(gpxData) {
-    // Close sidebar on mobile/drawer mode when a file is selected
-    if (sidebar.classList.contains('active')) {
-        toggleSidebar();
-    }
+    // Close sidebars on mobile/drawer mode when a file is selected
+    closeSidebars();
 
     if (currentTrack) {
         map.removeLayer(currentTrack);
@@ -405,9 +427,6 @@ function processGpxData(gpxXml) {
         });
     }
 
-    console.log("Extracted points:", points.length);
-    console.log("Sample point:", points[0]);
-
     // Generate metrics for charts
     var processedData = calculateMetrics(points);
     generateCharts(processedData, points);
@@ -470,8 +489,6 @@ function calculateMetrics(points) {
 var charts = {};
 
 function generateCharts(data, points) {
-    console.log("Generating charts with data points:", data.length);
-
     createElevationChart(data);
     if (typeof createPaceChart === 'function') createPaceChart(data);
     if (typeof createComboChart === 'function') createComboChart(data);

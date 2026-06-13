@@ -15,7 +15,7 @@
 <header>
     <button id="menu-toggle" aria-label="Toggle Sidebar">☰</button>
     <h1>GPX Viewer for Runners</h1>
-    <div style="width: 40px;"></div> <!-- Spacer for balance -->
+    <button id="charts-toggle" aria-label="Toggle Charts">📊</button>
 </header>
 
 <div id="controls">
@@ -47,12 +47,18 @@
 
 <div id="sidebar-overlay"></div>
 <div id="container">
-    <div id="sidebar">
-        <h3>Saved Files</h3>
+    <div id="sidebar" class="sidebar-left">
+        <div class="sidebar-header">
+            <h3>Saved Files</h3>
+            <button class="close-sidebar" onclick="closeSidebars()" aria-label="Close Sidebar">&times;</button>
+        </div>
         <div id="saved-list"></div>
     </div>
-    <div id="main-content">
-        <div id="map" style="min-height: 400px; flex-shrink: 0;"></div>
+    <div id="charts-sidebar" class="sidebar-right">
+        <div class="sidebar-header">
+            <h3>Charts & Analysis</h3>
+            <button class="close-sidebar" onclick="closeSidebars()" aria-label="Close Charts">&times;</button>
+        </div>
         <div id="charts-container">
             <div class="chart-wrapper">
                 <canvas id="elevation-chart"></canvas>
@@ -70,6 +76,9 @@
                 <canvas id="splits-chart"></canvas>
             </div>
         </div>
+    </div>
+    <div id="main-content">
+        <div id="map"></div>
     </div>
 </div>
 

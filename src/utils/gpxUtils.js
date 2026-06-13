@@ -53,11 +53,13 @@ export const calculateMetrics = (points) => {
       if (dt > 0 && dd > 0) {
         pace = dt / 60 / (dd / 1000); // min/km
 
-        // Grade Adjusted Pace (Simplified Minetti formula)
+        // Grade Adjusted Pace (Minetti formula approximation)
+        // GAP = pace / (1 + 9*i^2 + 4*i) for positive grade i
+        // For negative grade, it's slightly different.
         const grade = (points[i].ele - points[i - 1].ele) / dd;
-        const c = grade;
-        const ratio = 1 + 9 * c * c + (c > 0 ? 3 * c : 2 * c);
-        gap = pace / ratio;
+        const i_grade = grade;
+        const cost_ratio = 1 + (9 * Math.pow(i_grade, 2)) + (i_grade > 0 ? 4 * i_grade : 2.5 * i_grade);
+        gap = pace / cost_ratio;
       }
     }
 

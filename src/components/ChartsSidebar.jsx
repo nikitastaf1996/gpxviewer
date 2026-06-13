@@ -12,6 +12,7 @@ import {
   Filler,
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
+import HillMatrix from './HillMatrix';
 
 ChartJS.register(
   CategoryScale,
@@ -266,11 +267,12 @@ const ChartsSidebar = ({ isOpen, isFullscreen, onClose, onToggleFullscreen, data
             data={climbChartData}
             options={{
               ...commonOptions,
-              plugins: { title: { display: true, text: 'Hill Consistency Matrix' } },
+              plugins: { title: { display: true, text: 'Hill Paces' } },
               scales: { y: { reverse: true, title: { display: true, text: 'Avg Pace (min/km)' } } },
             }}
           />
         </div>
+        <HillMatrix climbs={climbs} />
         <div className="chart-wrapper">
           <Bar
             data={splitsChartData}

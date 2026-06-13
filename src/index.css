@@ -9,7 +9,8 @@ body {
   overflow: hidden;
 }
 
-#root {
+#root, .app-container {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }

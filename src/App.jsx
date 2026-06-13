@@ -68,7 +68,7 @@ function App() {
   };
 
   return (
-    <div id="root">
+    <div className="app-container">
       <Header
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         onToggleCharts={() => {

@@ -94,13 +94,29 @@ header h1 {
     margin: 0;
 }
 
-.close-sidebar {
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.action-btn, .close-sidebar {
     background: none;
     border: none;
-    font-size: 2rem;
     cursor: pointer;
     padding: 0;
     line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-btn {
+    font-size: 1.2rem;
+}
+
+.close-sidebar {
+    font-size: 2rem;
 }
 
 #saved-list, #charts-container {
@@ -123,6 +139,11 @@ header h1 {
 
 #charts-sidebar.active {
     right: 0;
+}
+
+#charts-sidebar.fullscreen {
+    width: 100% !important;
+    right: 0 !important;
 }
 
 @media (min-width: 768px) {

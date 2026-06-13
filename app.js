@@ -310,6 +310,7 @@ var chartsSidebar = document.getElementById('charts-sidebar');
 var overlay = document.getElementById('sidebar-overlay');
 var menuToggleBtn = document.getElementById('menu-toggle');
 var chartsToggleBtn = document.getElementById('charts-toggle');
+var chartsFullscreenBtn = document.getElementById('charts-fullscreen');
 
 function toggleSidebar() {
     sidebar.classList.toggle('active');
@@ -322,7 +323,18 @@ function toggleChartsSidebar() {
     if (chartsSidebar.classList.contains('active')) {
         // Trigger resize for charts to fit container
         Object.values(charts).forEach(chart => chart.resize());
+    } else {
+        // Reset fullscreen when closing
+        chartsSidebar.classList.remove('fullscreen');
     }
+}
+
+function toggleChartsFullscreen() {
+    chartsSidebar.classList.toggle('fullscreen');
+    // Trigger resize for charts to fit new container size
+    setTimeout(() => {
+        Object.values(charts).forEach(chart => chart.resize());
+    }, 300); // Match transition duration
 }
 
 function updateOverlay() {
@@ -341,6 +353,7 @@ function closeSidebars() {
 
 if (menuToggleBtn) menuToggleBtn.addEventListener('click', toggleSidebar);
 if (chartsToggleBtn) chartsToggleBtn.addEventListener('click', toggleChartsSidebar);
+if (chartsFullscreenBtn) chartsFullscreenBtn.addEventListener('click', toggleChartsFullscreen);
 if (overlay) overlay.addEventListener('click', closeSidebars);
 
 // Initial render

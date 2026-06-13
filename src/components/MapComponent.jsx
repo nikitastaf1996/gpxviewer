@@ -4,6 +4,29 @@ import L from 'leaflet';
 import 'leaflet-gpx';
 import 'leaflet.fullscreen';
 
+// Fix for default marker icons in Leaflet with React
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+// Custom component to add Fullscreen control properly
+const FullscreenControl = () => {
+    const map = useMap();
+    useEffect(() => {
+        const control = L.control.fullscreen({
+            position: 'topleft',
+            forceSeparateButton: true
+        }).addTo(map);
+        return () => {
+            map.removeControl(control);
+        };
+    }, [map]);
+    return null;
+};
+
 const GpxTrack = ({ gpxData, onLoaded }) => {
     const map = useMap();
     const trackRef = useRef(null);
@@ -45,12 +68,13 @@ const MapComponent = ({ gpxData, onTrackLoaded }) => {
                 center={[0, 0]}
                 zoom={2}
                 id="map"
-                fullscreenControl={true}
+                zoomControl={true}
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+                <FullscreenControl />
                 <GpxTrack gpxData={gpxData} onLoaded={onTrackLoaded} />
             </MapContainer>
         </div>

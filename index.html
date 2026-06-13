@@ -13,77 +13,136 @@
 <body>
 
 <header>
-    <button id="menu-toggle" aria-label="Toggle Sidebar">☰</button>
     <h1>GPX Viewer for Runners</h1>
-    <button id="charts-toggle" aria-label="Toggle Charts">📊</button>
 </header>
 
-<div id="controls">
-    <input type="file" id="gpx-file" accept=".gpx" />
-</div>
-
-<div id="stats">
-    <div class="stat-item">
-        <span class="stat-label">Distance</span>
-        <span id="distance" class="stat-value">-</span>
-    </div>
-    <div class="stat-item">
-        <span class="stat-label">Total Time</span>
-        <span id="duration" class="stat-value">-</span>
-    </div>
-    <div class="stat-item">
-        <span class="stat-label">Pace</span>
-        <span id="pace" class="stat-value">-</span>
-    </div>
-    <div class="stat-item">
-        <span class="stat-label">Elevation Gain</span>
-        <span id="elevation-gain" class="stat-value">-</span>
-    </div>
-    <div class="stat-item">
-        <span class="stat-label">Elevation Loss</span>
-        <span id="elevation-loss" class="stat-value">-</span>
-    </div>
-</div>
-
-<div id="sidebar-overlay"></div>
-<div id="container">
-    <div id="sidebar" class="sidebar-left">
-        <div class="sidebar-header">
-            <h3>Saved Files</h3>
-            <button class="close-sidebar" onclick="closeSidebars()" aria-label="Close Sidebar">&times;</button>
+<div id="tab-analyze" class="tab-content active">
+    <div id="analyze-fallback" class="fallback-ui">
+        <div class="fallback-content">
+            <span class="fallback-icon">🗺️</span>
+            <p>Select a run from your Library to begin analysis.</p>
+            <button onclick="showTab('tab-library')" class="action-btn-primary">Go to Library</button>
         </div>
-        <div id="saved-list"></div>
     </div>
-    <div id="charts-sidebar" class="sidebar-right">
-        <div class="sidebar-header">
-            <h3>Charts & Analysis</h3>
-            <div class="header-actions">
-                <button id="charts-fullscreen" class="action-btn" aria-label="Fullscreen Charts">⛶</button>
-                <button class="close-sidebar" onclick="closeSidebars()" aria-label="Close Charts">&times;</button>
+
+    <div id="analyze-data" style="display: none;">
+        <div id="stats">
+            <div class="stat-item">
+                <span class="stat-label">Distance</span>
+                <span id="distance" class="stat-value">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Total Time</span>
+                <span id="duration" class="stat-value">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Pace</span>
+                <span id="pace" class="stat-value">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Elevation Gain</span>
+                <span id="elevation-gain" class="stat-value">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Elevation Loss</span>
+                <span id="elevation-loss" class="stat-value">-</span>
             </div>
         </div>
+
+        <div id="main-content">
+            <div id="map"></div>
+        </div>
+
         <div id="charts-container">
-            <div class="chart-wrapper">
+            <div class="chart-wrapper" id="wrapper-elevation">
                 <canvas id="elevation-chart"></canvas>
             </div>
-            <div class="chart-wrapper">
+            <div class="chart-wrapper" id="wrapper-pace">
                 <canvas id="pace-chart"></canvas>
             </div>
-            <div class="chart-wrapper">
+            <div class="chart-wrapper" id="wrapper-combo">
                 <canvas id="combo-chart"></canvas>
             </div>
-            <div class="chart-wrapper">
+            <div class="chart-wrapper" id="wrapper-climb">
                 <canvas id="climb-chart"></canvas>
             </div>
-            <div class="chart-wrapper">
+            <div class="chart-wrapper" id="wrapper-splits">
                 <canvas id="splits-chart"></canvas>
             </div>
         </div>
     </div>
-    <div id="main-content">
-        <div id="map"></div>
+</div>
+
+<div id="tab-library" class="tab-content">
+    <div class="tab-header">
+        <h2>Library</h2>
+    </div>
+    <div class="upload-section">
+        <label for="gpx-file" class="file-label">
+            <span>Choose GPX File</span>
+            <input type="file" id="gpx-file" accept=".gpx" />
+        </label>
+    </div>
+    <div id="saved-list"></div>
+</div>
+
+<div id="tab-trends" class="tab-content">
+    <div class="tab-header">
+        <h2>Trends</h2>
+    </div>
+    <div class="placeholder-ui">
+        <span class="fallback-icon">📈</span>
+        <p>Trends dashboard coming soon...</p>
     </div>
 </div>
+
+<div id="tab-settings" class="tab-content">
+    <div class="tab-header">
+        <h2>Settings</h2>
+    </div>
+    <div class="settings-list">
+        <h3>Chart Visibility</h3>
+        <div class="setting-item">
+            <label>Elevation Profile</label>
+            <input type="checkbox" id="toggle-elevation" checked onchange="saveSettings()">
+        </div>
+        <div class="setting-item">
+            <label>Pace & GAP</label>
+            <input type="checkbox" id="toggle-pace" checked onchange="saveSettings()">
+        </div>
+        <div class="setting-item">
+            <label>Elevation & Pace</label>
+            <input type="checkbox" id="toggle-combo" checked onchange="saveSettings()">
+        </div>
+        <div class="setting-item">
+            <label>Hill Consistency Matrix</label>
+            <input type="checkbox" id="toggle-climb" checked onchange="saveSettings()">
+        </div>
+        <div class="setting-item">
+            <label>Split Performance</label>
+            <input type="checkbox" id="toggle-splits" checked onchange="saveSettings()">
+        </div>
+    </div>
+</div>
+
+<nav id="bottom-nav">
+    <button class="nav-item active" onclick="showTab('tab-analyze')" id="nav-analyze">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Analyze</span>
+    </button>
+    <button class="nav-item" onclick="showTab('tab-library')" id="nav-library">
+        <span class="nav-icon">📚</span>
+        <span class="nav-label">Library</span>
+    </button>
+    <button class="nav-item" onclick="showTab('tab-trends')" id="nav-trends">
+        <span class="nav-icon">📈</span>
+        <span class="nav-label">Trends</span>
+    </button>
+    <button class="nav-item" onclick="showTab('tab-settings')" id="nav-settings">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">Settings</span>
+    </button>
+</nav>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js'></script>

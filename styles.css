@@ -47,11 +47,37 @@ header h1 {
     padding: 1rem;
     background: var(--bg-light);
     border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .tab-header h2 {
     margin: 0;
     font-size: 1.5rem;
+}
+
+.add-btn {
+    background-color: var(--accent-color);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: transform 0.2s;
+}
+
+.add-btn:active {
+    transform: scale(0.9);
+}
+
+.add-btn input {
+    display: none;
 }
 
 /* Analyze Tab */
@@ -149,44 +175,42 @@ canvas {
 }
 
 /* Library Tab */
-.upload-section {
-    padding: 1.5rem;
-    text-align: center;
-}
-
-.file-label {
-    display: inline-block;
-    padding: 0.75rem 1.5rem;
-    background: var(--accent-color);
-    color: white;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-#gpx-file {
-    display: none;
-}
-
 #saved-list {
-    padding: 0 1rem;
+    padding: 1rem;
 }
 
-.sidebar-item {
+.run-card {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.75rem;
-    border-bottom: 1px solid #eee;
+    padding: 1rem;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    cursor: pointer;
+    transition: background-color 0.2s;
 }
 
-.sidebar-item:hover {
+.run-card:hover {
     background-color: #f9f9f9;
 }
 
-.sidebar-item span {
-    cursor: pointer;
+.run-info {
     flex-grow: 1;
-    padding-right: 1rem;
+}
+
+.run-main-info {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 4px;
+    color: #333;
+}
+
+.run-meta-info {
+    font-size: 0.85rem;
+    color: var(--text-muted);
 }
 
 .delete-btn {

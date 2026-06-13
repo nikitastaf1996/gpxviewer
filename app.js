@@ -76,23 +76,82 @@ function applySettings() {
 }
 
 // --- GPX Handling ---
+function parseGpxMetadata(gpxXml) {
+    var parser = new DOMParser();
+    var xmlDoc = parser.parseFromString(gpxXml, "text/xml");
+    var trkpts = xmlDoc.getElementsByTagName("trkpt");
+
+    if (trkpts.length === 0) return null;
+
+    var firstPt = trkpts[0];
+    var lastPt = trkpts[trkpts.length - 1];
+
+    var startTime = firstPt.getElementsByTagName("time")[0] ? new Date(firstPt.getElementsByTagName("time")[0].textContent) : new Date();
+    var endTime = lastPt.getElementsByTagName("time")[0] ? new Date(lastPt.getElementsByTagName("time")[0].textContent) : startTime;
+
+    var totalDist = 0;
+    for (var i = 1; i < trkpts.length; i++) {
+        var p1 = trkpts[i-1];
+        var p2 = trkpts[i];
+        totalDist += calculateDistance(
+            parseFloat(p1.getAttribute("lat")), parseFloat(p1.getAttribute("lon")),
+            parseFloat(p2.getAttribute("lat")), parseFloat(p2.getAttribute("lon"))
+        );
+    }
+
+    var distKm = totalDist / 1000;
+    var durationMs = endTime - startTime;
+    var paceMinPerKm = distKm > 0 ? (durationMs / 1000 / 60) / distKm : 0;
+
+    return {
+        date: startTime,
+        distance: distKm,
+        avgPace: paceMinPerKm,
+        lat: parseFloat(firstPt.getAttribute("lat")),
+        lon: parseFloat(firstPt.getAttribute("lon"))
+    };
+}
+
+async function fetchCityName(lat, lon) {
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        const address = data.address;
+        return address.city || address.town || address.village || address.suburb || address.county || '';
+    } catch (error) {
+        console.error('Reverse geocoding failed:', error);
+        return '';
+    }
+}
+
 document.getElementById('gpx-file').addEventListener('change', function(e) {
     var file = e.target.files[0];
     if (!file) return;
 
     var reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         var gpxData = e.target.result;
-        saveGpx(file.name, gpxData);
+        var metadata = parseGpxMetadata(gpxData);
+        if (metadata) {
+            metadata.city = await fetchCityName(metadata.lat, metadata.lon);
+        }
+        saveGpx(file.name, gpxData, metadata);
         displayGpx(gpxData);
     };
     reader.readAsText(file);
 });
 
-function saveGpx(name, data) {
+function saveGpx(name, data, metadata) {
     var savedFiles = JSON.parse(localStorage.getItem('gpxFiles') || '{}');
     savedFiles[name] = data;
     localStorage.setItem('gpxFiles', JSON.stringify(savedFiles));
+
+    if (metadata) {
+        var savedMeta = JSON.parse(localStorage.getItem('gpxMetadata') || '{}');
+        savedMeta[name] = metadata;
+        localStorage.setItem('gpxMetadata', JSON.stringify(savedMeta));
+    }
     renderLibrary();
 }
 
@@ -100,29 +159,54 @@ function loadSavedGpxList() {
     return JSON.parse(localStorage.getItem('gpxFiles') || '{}');
 }
 
+function loadSavedMetadata() {
+    return JSON.parse(localStorage.getItem('gpxMetadata') || '{}');
+}
+
 function deleteGpx(name) {
     var savedFiles = JSON.parse(localStorage.getItem('gpxFiles') || '{}');
     delete savedFiles[name];
     localStorage.setItem('gpxFiles', JSON.stringify(savedFiles));
+
+    var savedMeta = JSON.parse(localStorage.getItem('gpxMetadata') || '{}');
+    delete savedMeta[name];
+    localStorage.setItem('gpxMetadata', JSON.stringify(savedMeta));
+
     renderLibrary();
 }
 
 function renderLibrary() {
     var savedFiles = loadSavedGpxList();
+    var savedMeta = loadSavedMetadata();
     var savedList = document.getElementById('saved-list');
     if (!savedList) return;
 
     savedList.innerHTML = '';
 
     Object.keys(savedFiles).forEach(function(name) {
+        var meta = savedMeta[name];
         var item = document.createElement('div');
-        item.className = 'sidebar-item';
-
-        var span = document.createElement('span');
-        span.textContent = name;
-        span.onclick = function() {
+        item.className = 'run-card';
+        item.onclick = function() {
             displayGpx(savedFiles[name]);
         };
+
+        var info = document.createElement('div');
+        info.className = 'run-info';
+
+        var mainInfo = document.createElement('div');
+        mainInfo.className = 'run-main-info';
+
+        if (meta) {
+            var date = new Date(meta.date);
+            var dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+            var cityStr = meta.city ? ' - ' + meta.city : '';
+            mainInfo.textContent = dateStr + cityStr + " - " + meta.distance.toFixed(2) + " km - " + formatPace(meta.avgPace);
+            info.appendChild(mainInfo);
+        } else {
+            mainInfo.textContent = name;
+            info.appendChild(mainInfo);
+        }
 
         var btn = document.createElement('button');
         btn.textContent = 'Delete';
@@ -132,7 +216,7 @@ function renderLibrary() {
             deleteGpx(name);
         };
 
-        item.appendChild(span);
+        item.appendChild(info);
         item.appendChild(btn);
         savedList.appendChild(item);
     });

@@ -5,91 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#333333">
     <title>Simple GPX Viewer</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link href='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css' rel='stylesheet' />
-    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
-<header>
-    <button id="menu-toggle" aria-label="Toggle Sidebar">☰</button>
-    <h1>GPX Viewer for Runners</h1>
-    <button id="charts-toggle" aria-label="Toggle Charts">📊</button>
-</header>
-
-<div id="controls">
-    <input type="file" id="gpx-file" accept=".gpx" />
-</div>
-
-<div id="stats">
-    <div class="stat-item">
-        <span class="stat-label">Distance</span>
-        <span id="distance" class="stat-value">-</span>
-    </div>
-    <div class="stat-item">
-        <span class="stat-label">Total Time</span>
-        <span id="duration" class="stat-value">-</span>
-    </div>
-    <div class="stat-item">
-        <span class="stat-label">Pace</span>
-        <span id="pace" class="stat-value">-</span>
-    </div>
-    <div class="stat-item">
-        <span class="stat-label">Elevation Gain</span>
-        <span id="elevation-gain" class="stat-value">-</span>
-    </div>
-    <div class="stat-item">
-        <span class="stat-label">Elevation Loss</span>
-        <span id="elevation-loss" class="stat-value">-</span>
-    </div>
-</div>
-
-<div id="sidebar-overlay"></div>
-<div id="container">
-    <div id="sidebar" class="sidebar-left">
-        <div class="sidebar-header">
-            <h3>Saved Files</h3>
-            <button class="close-sidebar" onclick="closeSidebars()" aria-label="Close Sidebar">&times;</button>
-        </div>
-        <div id="saved-list"></div>
-    </div>
-    <div id="charts-sidebar" class="sidebar-right">
-        <div class="sidebar-header">
-            <h3>Charts & Analysis</h3>
-            <div class="header-actions">
-                <button id="charts-fullscreen" class="action-btn" aria-label="Fullscreen Charts">⛶</button>
-                <button class="close-sidebar" onclick="closeSidebars()" aria-label="Close Charts">&times;</button>
-            </div>
-        </div>
-        <div id="charts-container">
-            <div class="chart-wrapper">
-                <canvas id="elevation-chart"></canvas>
-            </div>
-            <div class="chart-wrapper">
-                <canvas id="pace-chart"></canvas>
-            </div>
-            <div class="chart-wrapper">
-                <canvas id="combo-chart"></canvas>
-            </div>
-            <div class="chart-wrapper">
-                <canvas id="climb-chart"></canvas>
-            </div>
-            <div class="chart-wrapper">
-                <canvas id="splits-chart"></canvas>
-            </div>
-        </div>
-    </div>
-    <div id="main-content">
-        <div id="map"></div>
-    </div>
-</div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js'></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/2.1.0/gpx.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js"></script>
-
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

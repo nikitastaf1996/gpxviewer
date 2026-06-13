@@ -8,44 +8,45 @@
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css' rel='stylesheet' />
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./styles.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body>
+<body x-data="app()">
 
 <header>
     <h1>GPX Viewer for Runners</h1>
 </header>
 
-<div id="tab-analyze" class="tab-content active">
-    <div id="analyze-fallback" class="fallback-ui">
+<div id="tab-analyze" class="tab-content" x-show="activeTab === 'analyze'" :class="{ 'active': activeTab === 'analyze' }">
+    <div id="analyze-fallback" class="fallback-ui" x-show="!activeGpx">
         <div class="fallback-content">
             <span class="fallback-icon">🗺️</span>
             <p>Select a run from your Library to begin analysis.</p>
-            <button onclick="showTab('tab-library')" class="action-btn-primary">Go to Library</button>
+            <button x-on:click="showTab('library')" class="action-btn-primary">Go to Library</button>
         </div>
     </div>
 
-    <div id="analyze-data" style="display: none;">
-        <div id="stats">
+    <div id="analyze-data" x-show="activeGpx" style="display: none;" :style="activeGpx ? 'display: flex' : 'display: none'">
+        <div id="stats" x-data="{ stats: activeGpxStats }">
             <div class="stat-item">
                 <span class="stat-label">Distance</span>
-                <span id="distance" class="stat-value">-</span>
+                <span class="stat-value" x-text="stats.distance || '-'">-</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Total Time</span>
-                <span id="duration" class="stat-value">-</span>
+                <span class="stat-value" x-text="stats.duration || '-'">-</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Pace</span>
-                <span id="pace" class="stat-value">-</span>
+                <span class="stat-value" x-text="stats.pace || '-'">-</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Elevation Gain</span>
-                <span id="elevation-gain" class="stat-value">-</span>
+                <span class="stat-value" x-text="stats.elevationGain || '-'">-</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Elevation Loss</span>
-                <span id="elevation-loss" class="stat-value">-</span>
+                <span class="stat-value" x-text="stats.elevationLoss || '-'">-</span>
             </div>
         </div>
 
@@ -54,37 +55,46 @@
         </div>
 
         <div id="charts-container">
-            <div class="chart-wrapper" id="wrapper-elevation">
+            <div class="chart-wrapper" id="wrapper-elevation" x-show="visibleCharts.elevation">
                 <canvas id="elevation-chart"></canvas>
             </div>
-            <div class="chart-wrapper" id="wrapper-pace">
+            <div class="chart-wrapper" id="wrapper-pace" x-show="visibleCharts.pace">
                 <canvas id="pace-chart"></canvas>
             </div>
-            <div class="chart-wrapper" id="wrapper-combo">
+            <div class="chart-wrapper" id="wrapper-combo" x-show="visibleCharts.combo">
                 <canvas id="combo-chart"></canvas>
             </div>
-            <div class="chart-wrapper" id="wrapper-climb">
+            <div class="chart-wrapper" id="wrapper-climb" x-show="visibleCharts.climb">
                 <canvas id="climb-chart"></canvas>
             </div>
-            <div class="chart-wrapper" id="wrapper-splits">
+            <div class="chart-wrapper" id="wrapper-splits" x-show="visibleCharts.splits">
                 <canvas id="splits-chart"></canvas>
             </div>
         </div>
     </div>
 </div>
 
-<div id="tab-library" class="tab-content">
+<div id="tab-library" class="tab-content" x-show="activeTab === 'library'" :class="{ 'active': activeTab === 'library' }">
     <div class="tab-header">
         <h2>Library</h2>
         <label for="gpx-file" class="add-btn" title="Add GPX File">
             <span>+</span>
-            <input type="file" id="gpx-file" accept=".gpx" />
+            <input type="file" id="gpx-file" accept=".gpx" x-on:change="handleFileUpload" />
         </label>
     </div>
-    <div id="saved-list"></div>
+    <div id="saved-list">
+        <template x-for="file in savedFiles" :key="file.filename">
+            <div class="run-card" x-on:click="displayGpx(file)">
+                <div class="run-info">
+                    <div class="run-main-info" x-text="formatRunCard(file)"></div>
+                </div>
+                <button class="delete-btn" x-on:click.stop="deleteGpx(file.filename)">Delete</button>
+            </div>
+        </template>
+    </div>
 </div>
 
-<div id="tab-trends" class="tab-content">
+<div id="tab-trends" class="tab-content" x-show="activeTab === 'trends'" :class="{ 'active': activeTab === 'trends' }">
     <div class="tab-header">
         <h2>Trends</h2>
     </div>
@@ -94,7 +104,7 @@
     </div>
 </div>
 
-<div id="tab-settings" class="tab-content">
+<div id="tab-settings" class="tab-content" x-show="activeTab === 'settings'" :class="{ 'active': activeTab === 'settings' }">
     <div class="tab-header">
         <h2>Settings</h2>
     </div>
@@ -102,41 +112,41 @@
         <h3>Chart Visibility</h3>
         <div class="setting-item">
             <label>Elevation Profile</label>
-            <input type="checkbox" id="toggle-elevation" checked onchange="saveSettings()">
+            <input type="checkbox" x-model="visibleCharts.elevation" x-on:change="saveSettings()">
         </div>
         <div class="setting-item">
             <label>Pace & GAP</label>
-            <input type="checkbox" id="toggle-pace" checked onchange="saveSettings()">
+            <input type="checkbox" x-model="visibleCharts.pace" x-on:change="saveSettings()">
         </div>
         <div class="setting-item">
             <label>Elevation & Pace</label>
-            <input type="checkbox" id="toggle-combo" checked onchange="saveSettings()">
+            <input type="checkbox" x-model="visibleCharts.combo" x-on:change="saveSettings()">
         </div>
         <div class="setting-item">
             <label>Hill Consistency Matrix</label>
-            <input type="checkbox" id="toggle-climb" checked onchange="saveSettings()">
+            <input type="checkbox" x-model="visibleCharts.climb" x-on:change="saveSettings()">
         </div>
         <div class="setting-item">
             <label>Split Performance</label>
-            <input type="checkbox" id="toggle-splits" checked onchange="saveSettings()">
+            <input type="checkbox" x-model="visibleCharts.splits" x-on:change="saveSettings()">
         </div>
     </div>
 </div>
 
 <nav id="bottom-nav">
-    <button class="nav-item active" onclick="showTab('tab-analyze')" id="nav-analyze">
+    <button class="nav-item" :class="{ 'active': activeTab === 'analyze' }" x-on:click="showTab('analyze')">
         <span class="nav-icon">📊</span>
         <span class="nav-label">Analyze</span>
     </button>
-    <button class="nav-item" onclick="showTab('tab-library')" id="nav-library">
+    <button class="nav-item" :class="{ 'active': activeTab === 'library' }" x-on:click="showTab('library')">
         <span class="nav-icon">📚</span>
         <span class="nav-label">Library</span>
     </button>
-    <button class="nav-item" onclick="showTab('tab-trends')" id="nav-trends">
+    <button class="nav-item" :class="{ 'active': activeTab === 'trends' }" x-on:click="showTab('trends')">
         <span class="nav-icon">📈</span>
         <span class="nav-label">Trends</span>
     </button>
-    <button class="nav-item" onclick="showTab('tab-settings')" id="nav-settings">
+    <button class="nav-item" :class="{ 'active': activeTab === 'settings' }" x-on:click="showTab('settings')">
         <span class="nav-icon">⚙️</span>
         <span class="nav-label">Settings</span>
     </button>
@@ -146,7 +156,7 @@
 <script src='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js'></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/2.1.0/gpx.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js"></script>
+<script src="./app.js"></script>
 
 </body>
 </html>

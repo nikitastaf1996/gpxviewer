@@ -6,7 +6,76 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 var currentTrack;
+var charts = {};
+var currentSettings = {
+    elevation: true,
+    pace: true,
+    combo: true,
+    climb: true,
+    splits: true
+};
 
+// --- Tab Navigation ---
+function showTab(tabId) {
+    // Update tab content visibility
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.getElementById(tabId).classList.add('active');
+
+    // Update bottom nav button state
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const navId = 'nav-' + tabId.replace('tab-', '');
+    const activeNav = document.getElementById(navId);
+    if (activeNav) activeNav.classList.add('active');
+
+    // Trigger map and chart resize if showing Analyze tab
+    if (tabId === 'tab-analyze') {
+        setTimeout(() => {
+            map.invalidateSize();
+            Object.values(charts).forEach(chart => chart.resize());
+        }, 100);
+    }
+}
+
+// --- Settings Management ---
+function loadSettings() {
+    const saved = localStorage.getItem('gpxViewerSettings');
+    if (saved) {
+        currentSettings = JSON.parse(saved);
+    }
+
+    // Update toggle inputs in DOM
+    for (const key in currentSettings) {
+        const input = document.getElementById('toggle-' + key);
+        if (input) input.checked = currentSettings[key];
+    }
+    applySettings();
+}
+
+function saveSettings() {
+    for (const key in currentSettings) {
+        const input = document.getElementById('toggle-' + key);
+        if (input) currentSettings[key] = input.checked;
+    }
+    localStorage.setItem('gpxViewerSettings', JSON.stringify(currentSettings));
+    applySettings();
+}
+
+function applySettings() {
+    for (const key in currentSettings) {
+        const wrapper = document.getElementById('wrapper-' + key);
+        if (wrapper) {
+            wrapper.style.display = currentSettings[key] ? 'block' : 'none';
+        }
+    }
+    // Resize remaining charts
+    Object.values(charts).forEach(chart => chart.resize());
+}
+
+// --- GPX Handling ---
 document.getElementById('gpx-file').addEventListener('change', function(e) {
     var file = e.target.files[0];
     if (!file) return;
@@ -24,7 +93,7 @@ function saveGpx(name, data) {
     var savedFiles = JSON.parse(localStorage.getItem('gpxFiles') || '{}');
     savedFiles[name] = data;
     localStorage.setItem('gpxFiles', JSON.stringify(savedFiles));
-    renderSidebar();
+    renderLibrary();
 }
 
 function loadSavedGpxList() {
@@ -35,250 +104,14 @@ function deleteGpx(name) {
     var savedFiles = JSON.parse(localStorage.getItem('gpxFiles') || '{}');
     delete savedFiles[name];
     localStorage.setItem('gpxFiles', JSON.stringify(savedFiles));
-    renderSidebar();
+    renderLibrary();
 }
 
-function createPaceChart(data) {
-    if (charts.pace) charts.pace.destroy();
-
-    var ctx = document.getElementById('pace-chart').getContext('2d');
-
-    charts.pace = new Chart(ctx, {
-        type: 'line',
-        data: {
-            datasets: [
-                {
-                    label: 'Pace (min/km)',
-                    data: data.map(d => ({x: d.dist, y: d.smoothedPace > 0 && d.smoothedPace < 20 ? d.smoothedPace : null})),
-                    borderColor: 'rgb(255, 99, 132)',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    tension: 0.3,
-                    z: 10
-                },
-                {
-                    label: 'GAP (min/km)',
-                    data: data.map(d => ({x: d.dist, y: d.smoothedGap > 0 && d.smoothedGap < 20 ? d.smoothedGap : null})),
-                    borderColor: 'rgba(255, 159, 64, 0.5)',
-                    backgroundColor: 'transparent',
-                    borderDash: [5, 5],
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    tension: 0.3,
-                    z: 5
-                },
-                {
-                    label: 'Uncertainty',
-                    data: data.map(d => ({x: d.dist, y: (d.smoothedPace > 0 && d.hdop) ? d.smoothedPace + d.hdop * 0.1 : null})),
-                    fill: '+1',
-                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                    borderColor: 'transparent',
-                    pointRadius: 0,
-                    tension: 0.3
-                },
-                {
-                    label: 'Uncertainty Lower',
-                    data: data.map(d => ({x: d.dist, y: (d.smoothedPace > 0 && d.hdop) ? Math.max(0, d.smoothedPace - d.hdop * 0.1) : null})),
-                    fill: false,
-                    borderColor: 'transparent',
-                    pointRadius: 0,
-                    tension: 0.3
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { type: "linear", title: { display: true, text: 'Distance (km)' } },
-                y: {
-                    reverse: true,
-                    title: { display: true, text: 'Pace (min/km)' },
-                    suggestedMin: 3,
-                    suggestedMax: 10
-                }
-            },
-            plugins: {
-                title: { display: true, text: 'Pace & Grade Adjusted Pace' },
-                legend: {
-                    labels: {
-                        filter: (item) => !item.text.includes('Uncertainty Lower')
-                    }
-                }
-            }
-        }
-    });
-}
-
-function createSplitsChart(data, points) {
-    if (charts.splits) charts.splits.destroy();
-
-    var splits = [];
-    var splitDist = 1.0; // 1 km
-    var nextSplit = splitDist;
-    var splitStartDist = 0;
-    var splitStartTime = points[0].time;
-
-    for (var i = 0; i < data.length; i++) {
-        if (data[i].dist >= nextSplit || i === data.length - 1) {
-            var dDist = data[i].dist - splitStartDist;
-            var dTime = (points[i].time - splitStartTime) / 1000 / 60; // min
-            if (dDist > 0.1) { // Avoid tiny splits at the end
-                splits.push({
-                    label: "Split " + (splits.length + 1),
-                    pace: dTime / dDist
-                });
-            }
-            splitStartDist = data[i].dist;
-            splitStartTime = points[i].time;
-            nextSplit += splitDist;
-        }
-    }
-
-    if (splits.length === 0) return;
-
-    var avgPace = splits.reduce((a, b) => a + b.pace, 0) / splits.length;
-
-    var ctx = document.getElementById('splits-chart').getContext('2d');
-    charts.splits = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: splits.map(s => s.label),
-            datasets: [{
-                label: 'Split Pace (min/km)',
-                data: splits.map(s => s.pace),
-                backgroundColor: splits.map(s => s.pace <= avgPace ? 'rgba(75, 192, 192, 0.6)' : 'rgba(255, 99, 132, 0.6)')
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: { display: true, text: 'Split Performance (1km)' }
-            },
-            scales: {
-                y: { reverse: true, title: { display: true, text: 'Pace (min/km)' } }
-            }
-        }
-    });
-}
-
-function createClimbChart(data) {
-    if (charts.climb) charts.climb.destroy();
-
-    var climbs = [];
-    var currentClimb = null;
-    var minGain = 5; // meters
-    var minDistance = 100; // meters
-
-    for (var i = 1; i < data.length; i++) {
-        var eleDiff = data[i].ele - data[i-1].ele;
-        var distDiff = (data[i].dist - data[i-1].dist) * 1000;
-
-        if (eleDiff > 0) {
-            if (!currentClimb) {
-                currentClimb = { startIdx: i-1, gain: 0, dist: 0, paces: [] };
-            }
-            currentClimb.gain += eleDiff;
-            currentClimb.dist += distDiff;
-            if (data[i].smoothedPace > 0) currentClimb.paces.push(data[i].smoothedPace);
-        } else if (currentClimb) {
-            if (currentClimb.gain >= minGain && currentClimb.dist >= minDistance) {
-                currentClimb.avgPace = currentClimb.paces.reduce((a, b) => a + b, 0) / currentClimb.paces.length;
-                climbs.push(currentClimb);
-            }
-            currentClimb = null;
-        }
-    }
-    if (currentClimb && currentClimb.gain >= minGain && currentClimb.dist >= minDistance) {
-        currentClimb.avgPace = currentClimb.paces.reduce((a, b) => a + b, 0) / currentClimb.paces.length;
-        climbs.push(currentClimb);
-    }
-
-    var ctx = document.getElementById('climb-chart').getContext('2d');
-    charts.climb = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: climbs.map((_, i) => "Climb #" + (i + 1)),
-            datasets: [{
-                label: 'Avg Pace on Climb (min/km)',
-                data: climbs.map(c => c.avgPace),
-                backgroundColor: 'rgba(153, 102, 255, 0.6)'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: { display: true, text: 'Hill Consistency Matrix (Climb Performance)' }
-            },
-            scales: {
-                y: { reverse: true, title: { display: true, text: 'Avg Pace (min/km)' } }
-            }
-        }
-    });
-}
-
-function createComboChart(data) {
-    if (charts.combo) charts.combo.destroy();
-
-    var ctx = document.getElementById('combo-chart').getContext('2d');
-
-    charts.combo = new Chart(ctx, {
-        type: 'line',
-        data: {
-            datasets: [
-                {
-                    label: 'Elevation (m)',
-                    data: data.map(d => ({x: d.dist, y: d.ele})),
-                    borderColor: 'rgb(75, 192, 192)',
-                    yAxisID: 'y-ele',
-                    fill: false,
-                    pointRadius: 0
-                },
-                {
-                    label: 'Pace (min/km)',
-                    data: data.map(d => ({x: d.dist, y: d.smoothedPace > 0 && d.smoothedPace < 20 ? d.smoothedPace : null})),
-                    borderColor: 'rgb(255, 99, 132)',
-                    yAxisID: 'y-pace',
-                    fill: false,
-                    pointRadius: 0
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { type: "linear", title: { display: true, text: 'Distance (km)' } },
-                'y-ele': {
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    title: { display: true, text: 'Elevation (m)' }
-                },
-                'y-pace': {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    reverse: true,
-                    title: { display: true, text: 'Pace (min/km)' },
-                    grid: { drawOnChartArea: false },
-                    suggestedMin: 3,
-                    suggestedMax: 10
-                }
-            },
-            plugins: {
-                title: { display: true, text: 'Elevation & Pace (Synchronized)' }
-            }
-        }
-    });
-}
-
-function renderSidebar() {
+function renderLibrary() {
     var savedFiles = loadSavedGpxList();
     var savedList = document.getElementById('saved-list');
+    if (!savedList) return;
+
     savedList.innerHTML = '';
 
     Object.keys(savedFiles).forEach(function(name) {
@@ -305,63 +138,11 @@ function renderSidebar() {
     });
 }
 
-var sidebar = document.getElementById('sidebar');
-var chartsSidebar = document.getElementById('charts-sidebar');
-var overlay = document.getElementById('sidebar-overlay');
-var menuToggleBtn = document.getElementById('menu-toggle');
-var chartsToggleBtn = document.getElementById('charts-toggle');
-var chartsFullscreenBtn = document.getElementById('charts-fullscreen');
-
-function toggleSidebar() {
-    sidebar.classList.toggle('active');
-    updateOverlay();
-}
-
-function toggleChartsSidebar() {
-    chartsSidebar.classList.toggle('active');
-    updateOverlay();
-    if (chartsSidebar.classList.contains('active')) {
-        // Trigger resize for charts to fit container
-        Object.values(charts).forEach(chart => chart.resize());
-    } else {
-        // Reset fullscreen when closing
-        chartsSidebar.classList.remove('fullscreen');
-    }
-}
-
-function toggleChartsFullscreen() {
-    chartsSidebar.classList.toggle('fullscreen');
-    // Trigger resize for charts to fit new container size
-    setTimeout(() => {
-        Object.values(charts).forEach(chart => chart.resize());
-    }, 300); // Match transition duration
-}
-
-function updateOverlay() {
-    if (sidebar.classList.contains('active') || chartsSidebar.classList.contains('active')) {
-        overlay.classList.add('active');
-    } else {
-        overlay.classList.remove('active');
-    }
-}
-
-function closeSidebars() {
-    sidebar.classList.remove('active');
-    chartsSidebar.classList.remove('active');
-    updateOverlay();
-}
-
-if (menuToggleBtn) menuToggleBtn.addEventListener('click', toggleSidebar);
-if (chartsToggleBtn) chartsToggleBtn.addEventListener('click', toggleChartsSidebar);
-if (chartsFullscreenBtn) chartsFullscreenBtn.addEventListener('click', toggleChartsFullscreen);
-if (overlay) overlay.addEventListener('click', closeSidebars);
-
-// Initial render
-renderSidebar();
-
 function displayGpx(gpxData) {
-    // Close sidebars on mobile/drawer mode when a file is selected
-    closeSidebars();
+    // UI Transitions
+    document.getElementById('analyze-fallback').style.display = 'none';
+    document.getElementById('analyze-data').style.display = 'flex';
+    showTab('tab-analyze');
 
     if (currentTrack) {
         map.removeLayer(currentTrack);
@@ -462,11 +243,8 @@ function calculateMetrics(points) {
 
                 // Grade Adjusted Pace (Minetti formula)
                 var grade = (points[i].ele - points[i-1].ele) / dd;
-                // Minetti et al. (2002) simpler approximation or similar:
-                // Cr = 155.4 * i^5 - 30.4 * i^4 - 43.3 * i^3 + 46.3 * i^2 + 19.5 * i + 3.6
-                // We'll use a standard running cost factor approximation:
                 var c = grade;
-                var ratio = 1 + 9*c*c + (c > 0 ? 3*c : 2*c); // Simplified Minetti-like
+                var ratio = 1 + 9*c*c + (c > 0 ? 3*c : 2*c);
                 gap = pace / ratio;
             }
         }
@@ -480,7 +258,7 @@ function calculateMetrics(points) {
         });
     }
 
-    // Apply SMA smoothing to pace and gap
+    // Apply SMA smoothing
     for (var i = 0; i < metrics.length; i++) {
         var start = Math.max(0, i - Math.floor(windowSize / 2));
         var end = Math.min(metrics.length - 1, i + Math.floor(windowSize / 2));
@@ -499,21 +277,18 @@ function calculateMetrics(points) {
     return metrics;
 }
 
-var charts = {};
-
 function generateCharts(data, points) {
     createElevationChart(data);
-    if (typeof createPaceChart === 'function') createPaceChart(data);
-    if (typeof createComboChart === 'function') createComboChart(data);
-    if (typeof createClimbChart === 'function') createClimbChart(data);
-    if (typeof createSplitsChart === 'function') createSplitsChart(data, points);
+    createPaceChart(data);
+    createComboChart(data);
+    createClimbChart(data);
+    createSplitsChart(data, points);
+    applySettings(); // Ensure visibility is correct after creation
 }
 
 function createElevationChart(data) {
     if (charts.elevation) charts.elevation.destroy();
-
     var ctx = document.getElementById('elevation-chart').getContext('2d');
-
     var eleData = data.map(d => d.ele);
     var minEle = Math.min(...eleData);
     var maxEle = Math.max(...eleData);
@@ -539,57 +314,188 @@ function createElevationChart(data) {
                 x: { type: "linear", title: { display: true, text: 'Distance (km)' } },
                 y: { title: { display: true, text: 'Elevation (m)' } }
             },
-            plugins: {
-                title: { display: true, text: 'Elevation Profile' }
+            plugins: { title: { display: true, text: 'Elevation Profile' } }
+        }
+    });
+}
+
+function createPaceChart(data) {
+    if (charts.pace) charts.pace.destroy();
+    var ctx = document.getElementById('pace-chart').getContext('2d');
+    charts.pace = new Chart(ctx, {
+        type: 'line',
+        data: {
+            datasets: [
+                {
+                    label: 'Pace (min/km)',
+                    data: data.map(d => ({x: d.dist, y: d.smoothedPace > 0 && d.smoothedPace < 20 ? d.smoothedPace : null})),
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.3
+                },
+                {
+                    label: 'GAP (min/km)',
+                    data: data.map(d => ({x: d.dist, y: d.smoothedGap > 0 && d.smoothedGap < 20 ? d.smoothedGap : null})),
+                    borderColor: 'rgba(255, 159, 64, 0.5)',
+                    backgroundColor: 'transparent',
+                    borderDash: [5, 5],
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { type: "linear", title: { display: true, text: 'Distance (km)' } },
+                y: { reverse: true, title: { display: true, text: 'Pace (min/km)' }, suggestedMin: 3, suggestedMax: 10 }
+            },
+            plugins: { title: { display: true, text: 'Pace & Grade Adjusted Pace' } }
+        }
+    });
+}
+
+function createComboChart(data) {
+    if (charts.combo) charts.combo.destroy();
+    var ctx = document.getElementById('combo-chart').getContext('2d');
+    charts.combo = new Chart(ctx, {
+        type: 'line',
+        data: {
+            datasets: [
+                {
+                    label: 'Elevation (m)',
+                    data: data.map(d => ({x: d.dist, y: d.ele})),
+                    borderColor: 'rgb(75, 192, 192)',
+                    yAxisID: 'y-ele',
+                    fill: false,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Pace (min/km)',
+                    data: data.map(d => ({x: d.dist, y: d.smoothedPace > 0 && d.smoothedPace < 20 ? d.smoothedPace : null})),
+                    borderColor: 'rgb(255, 99, 132)',
+                    yAxisID: 'y-pace',
+                    fill: false,
+                    pointRadius: 0
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { type: "linear", title: { display: true, text: 'Distance (km)' } },
+                'y-ele': { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Elevation (m)' } },
+                'y-pace': { type: 'linear', display: true, position: 'right', reverse: true, title: { display: true, text: 'Pace (min/km)' }, grid: { drawOnChartArea: false }, suggestedMin: 3, suggestedMax: 10 }
+            },
+            plugins: { title: { display: true, text: 'Elevation & Pace (Synchronized)' } }
+        }
+    });
+}
+
+function createClimbChart(data) {
+    if (charts.climb) charts.climb.destroy();
+    var climbs = [];
+    var currentClimb = null;
+    var minGain = 5, minDistance = 100;
+
+    for (var i = 1; i < data.length; i++) {
+        var eleDiff = data[i].ele - data[i-1].ele;
+        var distDiff = (data[i].dist - data[i-1].dist) * 1000;
+
+        if (eleDiff > 0) {
+            if (!currentClimb) currentClimb = { startIdx: i-1, gain: 0, dist: 0, paces: [] };
+            currentClimb.gain += eleDiff;
+            currentClimb.dist += distDiff;
+            if (data[i].smoothedPace > 0) currentClimb.paces.push(data[i].smoothedPace);
+        } else if (currentClimb) {
+            if (currentClimb.gain >= minGain && currentClimb.dist >= minDistance) {
+                currentClimb.avgPace = currentClimb.paces.reduce((a, b) => a + b, 0) / currentClimb.paces.length;
+                climbs.push(currentClimb);
             }
+            currentClimb = null;
+        }
+    }
+
+    var ctx = document.getElementById('climb-chart').getContext('2d');
+    charts.climb = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: climbs.map((_, i) => "Climb #" + (i + 1)),
+            datasets: [{ label: 'Avg Pace on Climb (min/km)', data: climbs.map(c => c.avgPace), backgroundColor: 'rgba(153, 102, 255, 0.6)' }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: true, text: 'Hill Consistency Matrix' } },
+            scales: { y: { reverse: true, title: { display: true, text: 'Avg Pace (min/km)' } } }
+        }
+    });
+}
+
+function createSplitsChart(data, points) {
+    if (charts.splits) charts.splits.destroy();
+    var splits = [];
+    var splitDist = 1.0, nextSplit = splitDist, splitStartDist = 0, splitStartTime = points[0].time;
+
+    for (var i = 0; i < data.length; i++) {
+        if (data[i].dist >= nextSplit || i === data.length - 1) {
+            var dDist = data[i].dist - splitStartDist;
+            var dTime = (points[i].time - splitStartTime) / 1000 / 60;
+            if (dDist > 0.1) splits.push({ label: "Split " + (splits.length + 1), pace: dTime / dDist });
+            splitStartDist = data[i].dist;
+            splitStartTime = points[i].time;
+            nextSplit += splitDist;
+        }
+    }
+    if (splits.length === 0) return;
+
+    var avgPace = splits.reduce((a, b) => a + b.pace, 0) / splits.length;
+    var ctx = document.getElementById('splits-chart').getContext('2d');
+    charts.splits = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: splits.map(s => s.label),
+            datasets: [{ label: 'Split Pace (min/km)', data: splits.map(s => s.pace), backgroundColor: splits.map(s => s.pace <= avgPace ? 'rgba(75, 192, 192, 0.6)' : 'rgba(255, 99, 132, 0.6)') }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: true, text: 'Split Performance (1km)' } },
+            scales: { y: { reverse: true, title: { display: true, text: 'Pace (min/km)' } } }
         }
     });
 }
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
-    var R = 6371e3; // metres
-    var φ1 = lat1 * Math.PI/180;
-    var φ2 = lat2 * Math.PI/180;
-    var Δφ = (lat2-lat1) * Math.PI/180;
-    var Δλ = (lon2-lon1) * Math.PI/180;
-
-    var a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ/2) * Math.sin(Δλ/2);
-    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-    return R * c;
+    var R = 6371e3;
+    var φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+    var Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
+    var a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
 function formatDuration(ms) {
-    var s = Math.floor(ms / 1000);
-    var h = Math.floor(s / 3600);
-    s %= 3600;
-    var m = Math.floor(s / 60);
-    s %= 60;
-
-    var res = "";
-    if (h > 0) res += h + "h ";
-    res += m + "m " + s + "s";
-    return res;
+    var s = Math.floor(ms / 1000), h = Math.floor(s / 3600);
+    s %= 3600; var m = Math.floor(s / 60); s %= 60;
+    return (h > 0 ? h + "h " : "") + m + "m " + s + "s";
 }
 
 function formatPace(minPerKm) {
-    var min = Math.floor(minPerKm);
-    var sec = Math.round((minPerKm - min) * 60);
-    if (sec === 60) {
-        min++;
-        sec = 0;
-    }
+    var min = Math.floor(minPerKm), sec = Math.round((minPerKm - min) * 60);
+    if (sec === 60) { min++; sec = 0; }
     return min + ":" + (sec < 10 ? "0" : "") + sec + " /km";
 }
 
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').then((registration) => {
-            console.log('ServiceWorker registration successful with scope: ', registration.scope);
-        }, (err) => {
-            console.log('ServiceWorker registration failed: ', err);
-        });
-    });
-}
+// --- Initial Setup ---
+window.addEventListener('load', () => {
+    renderLibrary();
+    loadSettings();
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW failed:', err));
+    }
+});

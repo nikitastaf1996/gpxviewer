@@ -55,7 +55,8 @@ window.geocoder = {
                     }
 
                     console.log(`Geocoding ${item.name}...`);
-                    const cityName = await window.gpxUtils.fetchCityName(item.lat, item.lon);
+                    const preferredEntity = window.Alpine && Alpine.store('app') ? Alpine.store('app').geocodingEntity : 'city';
+                    const cityName = await window.gpxUtils.fetchCityName(item.lat, item.lon, preferredEntity);
 
                     // Update record
                     currentMeta.city = cityName || '';

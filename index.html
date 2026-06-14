@@ -52,6 +52,10 @@
                 <span class="stat-label">Elevation Loss</span>
                 <span class="stat-value" x-text="$store.app.activeGpxStats.elevationLoss || '-'">-</span>
             </div>
+            <div class="stat-item">
+                <span class="stat-label">Location</span>
+                <span class="stat-value" x-text="$store.app.activeGpxStats.location || '-'">-</span>
+            </div>
         </div>
 
         <div id="main-content">
@@ -179,6 +183,18 @@
             </div>
         </div>
 
+        <div class="chart-section" x-show="$store.app.topLocations.length > 0">
+            <h3>Popular Locations</h3>
+            <div class="top-locations-list">
+                <template x-for="loc in $store.app.topLocations" :key="loc.name">
+                    <div class="location-chip">
+                        <span class="location-name" x-text="loc.name"></span>
+                        <span class="location-count" x-text="loc.count + ' runs'"></span>
+                    </div>
+                </template>
+            </div>
+        </div>
+
         <div class="chart-section">
             <h3>Monthly Volume</h3>
             <div class="trends-chart-wrapper">
@@ -213,6 +229,28 @@
         <div class="setting-item">
             <label>Split Performance</label>
             <input type="checkbox" x-model="$store.app.visibleCharts.splits" x-on:change="$store.app.saveSettings()">
+        </div>
+        <h3>Geocoding</h3>
+        <div class="setting-item">
+            <label>Entity to Display</label>
+            <select x-model="$store.app.geocodingEntity" x-on:change="$store.app.saveSettings()" class="settings-select">
+                <option value="city">City</option>
+                <option value="town">Town</option>
+                <option value="village">Village</option>
+                <option value="suburb">Suburb</option>
+                <option value="municipality">Municipality</option>
+                <option value="county">County</option>
+                <option value="district">District</option>
+                <option value="state">State</option>
+            </select>
+        </div>
+        <div class="setting-item">
+            <div style="width: 100%;">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                    Sync will re-process all runs using the selected entity. This may take some time.
+                </p>
+                <button x-on:click="syncGeocoding()" class="btn-secondary" style="width: 100%;">Sync Geocoding</button>
+            </div>
         </div>
         <h3>Danger Zone</h3>
         <div class="setting-item">

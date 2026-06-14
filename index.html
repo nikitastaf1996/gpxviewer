@@ -12,42 +12,42 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body x-data="app()">
+<body x-data>
 
 <header>
     <h1>GPX Viewer for Runners</h1>
 </header>
 
-<div id="tab-analyze" class="tab-content" x-show="activeTab === 'analyze'" :class="{ 'active': activeTab === 'analyze' }">
-    <div id="analyze-fallback" class="fallback-ui" x-show="!activeGpx">
+<div id="tab-analyze" class="tab-content" x-data="analyze" x-show="$store.app.activeTab === 'analyze'" :class="{ 'active': $store.app.activeTab === 'analyze' }">
+    <div id="analyze-fallback" class="fallback-ui" x-show="!$store.app.activeGpx">
         <div class="fallback-content">
             <span class="fallback-icon">🗺️</span>
             <p>Select a run from your Library to begin analysis.</p>
-            <button x-on:click="showTab('library')" class="action-btn-primary">Go to Library</button>
+            <button x-on:click="$store.app.showTab('library')" class="action-btn-primary">Go to Library</button>
         </div>
     </div>
 
-    <div id="analyze-data" x-show="activeGpx" style="display: none;" :style="activeGpx ? 'display: flex' : 'display: none'">
-        <div id="stats" x-data="{ stats: activeGpxStats }">
+    <div id="analyze-data" x-show="$store.app.activeGpx" style="display: none;" :style="$store.app.activeGpx ? 'display: flex' : 'display: none'">
+        <div id="stats">
             <div class="stat-item">
                 <span class="stat-label">Distance</span>
-                <span class="stat-value" x-text="stats.distance || '-'">-</span>
+                <span class="stat-value" x-text="$store.app.activeGpxStats.distance || '-'">-</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Total Time</span>
-                <span class="stat-value" x-text="stats.duration || '-'">-</span>
+                <span class="stat-value" x-text="$store.app.activeGpxStats.duration || '-'">-</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Pace</span>
-                <span class="stat-value" x-text="stats.pace || '-'">-</span>
+                <span class="stat-value" x-text="$store.app.activeGpxStats.pace || '-'">-</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Elevation Gain</span>
-                <span class="stat-value" x-text="stats.elevationGain || '-'">-</span>
+                <span class="stat-value" x-text="$store.app.activeGpxStats.elevationGain || '-'">-</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Elevation Loss</span>
-                <span class="stat-value" x-text="stats.elevationLoss || '-'">-</span>
+                <span class="stat-value" x-text="$store.app.activeGpxStats.elevationLoss || '-'">-</span>
             </div>
         </div>
 
@@ -56,26 +56,26 @@
         </div>
 
         <div id="charts-container">
-            <div class="chart-wrapper" id="wrapper-elevation" x-show="visibleCharts.elevation">
+            <div class="chart-wrapper" id="wrapper-elevation" x-show="$store.app.visibleCharts.elevation">
                 <canvas id="elevation-chart"></canvas>
             </div>
-            <div class="chart-wrapper" id="wrapper-pace" x-show="visibleCharts.pace">
+            <div class="chart-wrapper" id="wrapper-pace" x-show="$store.app.visibleCharts.pace">
                 <canvas id="pace-chart"></canvas>
             </div>
-            <div class="chart-wrapper" id="wrapper-combo" x-show="visibleCharts.combo">
+            <div class="chart-wrapper" id="wrapper-combo" x-show="$store.app.visibleCharts.combo">
                 <canvas id="combo-chart"></canvas>
             </div>
-            <div class="chart-wrapper" id="wrapper-climb" x-show="visibleCharts.climb">
+            <div class="chart-wrapper" id="wrapper-climb" x-show="$store.app.visibleCharts.climb">
                 <canvas id="climb-chart"></canvas>
             </div>
-            <div class="chart-wrapper" id="wrapper-splits" x-show="visibleCharts.splits">
+            <div class="chart-wrapper" id="wrapper-splits" x-show="$store.app.visibleCharts.splits">
                 <canvas id="splits-chart"></canvas>
             </div>
         </div>
     </div>
 </div>
 
-<div id="tab-library" class="tab-content" x-show="activeTab === 'library'" :class="{ 'active': activeTab === 'library' }">
+<div id="tab-library" class="tab-content" x-data="library" x-show="$store.app.activeTab === 'library'" :class="{ 'active': $store.app.activeTab === 'library' }">
     <div class="tab-header">
         <h2>Library</h2>
         <div style="display: flex; gap: 0.5rem;">
@@ -96,7 +96,7 @@
         </div>
     </div>
     <div id="saved-list">
-        <template x-for="file in savedFiles" :key="file.filename">
+        <template x-for="file in $store.app.savedFiles" :key="file.filename">
             <div class="run-card" x-on:click="displayGpx(file)">
                 <div class="run-info">
                     <div class="run-main-info" x-text="formatRunCard(file)"></div>
@@ -107,7 +107,7 @@
     </div>
 </div>
 
-<div id="tab-trends" class="tab-content" x-show="activeTab === 'trends'" :class="{ 'active': activeTab === 'trends' }">
+<div id="tab-trends" class="tab-content" x-show="$store.app.activeTab === 'trends'" :class="{ 'active': $store.app.activeTab === 'trends' }">
     <div class="tab-header">
         <h2>Trends</h2>
     </div>
@@ -117,7 +117,7 @@
     </div>
 </div>
 
-<div id="tab-settings" class="tab-content" x-show="activeTab === 'settings'" :class="{ 'active': activeTab === 'settings' }">
+<div id="tab-settings" class="tab-content" x-data="settings" x-show="$store.app.activeTab === 'settings'" :class="{ 'active': $store.app.activeTab === 'settings' }">
     <div class="tab-header">
         <h2>Settings</h2>
     </div>
@@ -125,23 +125,23 @@
         <h3>Chart Visibility</h3>
         <div class="setting-item">
             <label>Elevation Profile</label>
-            <input type="checkbox" x-model="visibleCharts.elevation" x-on:change="saveSettings()">
+            <input type="checkbox" x-model="$store.app.visibleCharts.elevation" x-on:change="$store.app.saveSettings()">
         </div>
         <div class="setting-item">
             <label>Pace & GAP</label>
-            <input type="checkbox" x-model="visibleCharts.pace" x-on:change="saveSettings()">
+            <input type="checkbox" x-model="$store.app.visibleCharts.pace" x-on:change="$store.app.saveSettings()">
         </div>
         <div class="setting-item">
             <label>Elevation & Pace</label>
-            <input type="checkbox" x-model="visibleCharts.combo" x-on:change="saveSettings()">
+            <input type="checkbox" x-model="$store.app.visibleCharts.combo" x-on:change="$store.app.saveSettings()">
         </div>
         <div class="setting-item">
             <label>Hill Consistency Matrix</label>
-            <input type="checkbox" x-model="visibleCharts.climb" x-on:change="saveSettings()">
+            <input type="checkbox" x-model="$store.app.visibleCharts.climb" x-on:change="$store.app.saveSettings()">
         </div>
         <div class="setting-item">
             <label>Split Performance</label>
-            <input type="checkbox" x-model="visibleCharts.splits" x-on:change="saveSettings()">
+            <input type="checkbox" x-model="$store.app.visibleCharts.splits" x-on:change="$store.app.saveSettings()">
         </div>
         <h3>Danger Zone</h3>
         <div class="setting-item">
@@ -151,19 +151,19 @@
 </div>
 
 <nav id="bottom-nav">
-    <button class="nav-item" :class="{ 'active': activeTab === 'analyze' }" x-on:click="showTab('analyze')">
+    <button class="nav-item" :class="{ 'active': $store.app.activeTab === 'analyze' }" x-on:click="$store.app.showTab('analyze')">
         <span class="nav-icon">📊</span>
         <span class="nav-label">Analyze</span>
     </button>
-    <button class="nav-item" :class="{ 'active': activeTab === 'library' }" x-on:click="showTab('library')">
+    <button class="nav-item" :class="{ 'active': $store.app.activeTab === 'library' }" x-on:click="$store.app.showTab('library')">
         <span class="nav-icon">📚</span>
         <span class="nav-label">Library</span>
     </button>
-    <button class="nav-item" :class="{ 'active': activeTab === 'trends' }" x-on:click="showTab('trends')">
+    <button class="nav-item" :class="{ 'active': $store.app.activeTab === 'trends' }" x-on:click="$store.app.showTab('trends')">
         <span class="nav-icon">📈</span>
         <span class="nav-label">Trends</span>
     </button>
-    <button class="nav-item" :class="{ 'active': activeTab === 'settings' }" x-on:click="showTab('settings')">
+    <button class="nav-item" :class="{ 'active': $store.app.activeTab === 'settings' }" x-on:click="$store.app.showTab('settings')">
         <span class="nav-icon">⚙️</span>
         <span class="nav-label">Settings</span>
     </button>
@@ -173,7 +173,13 @@
 <script src='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js'></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/2.1.0/gpx.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="./app.js"></script>
+<script src="./js/db.js"></script>
+<script src="./js/gpx-utils.js"></script>
+<script src="./js/store.js"></script>
+<script src="./js/components/analyze.js"></script>
+<script src="./js/components/library.js"></script>
+<script src="./js/components/settings.js"></script>
+<script src="./js/main.js"></script>
 
 </body>
 </html>

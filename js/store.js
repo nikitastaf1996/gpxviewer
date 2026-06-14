@@ -8,7 +8,8 @@ document.addEventListener('alpine:init', () => {
             duration: null,
             pace: null,
             elevationGain: null,
-            elevationLoss: null
+            elevationLoss: null,
+            location: null
         },
         lifetimeStats: {
             totalDistance: 0,
@@ -17,6 +18,7 @@ document.addEventListener('alpine:init', () => {
             avgPace: 0
         },
         groupedFiles: [],
+        topLocations: [],
         visibleCharts: {
             elevation: true,
             pace: true,
@@ -74,6 +76,18 @@ document.addEventListener('alpine:init', () => {
             this.lifetimeStats.runCount = this.savedFiles.length;
             this.lifetimeStats.avgPace = totalDist > 0 ? (totalDur / 1000 / 60) / totalDist : 0;
 
+            // Calculate top 3 locations
+            const locationCounts = {};
+            this.savedFiles.forEach(f => {
+                if (f.city) {
+                    locationCounts[f.city] = (locationCounts[f.city] || 0) + 1;
+                }
+            });
+            this.topLocations = Object.entries(locationCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3)
+                .map(([name, count]) => ({ name, count }));
+
             // Group files by month/year
             const groups = {};
             this.savedFiles.forEach(f => {
@@ -115,6 +129,7 @@ document.addEventListener('alpine:init', () => {
             // Update activeGpx if it matches
             if (this.activeGpx && this.activeGpx.filename === filename) {
                 this.activeGpx.city = city;
+                this.activeGpxStats.location = city;
             }
         }
     });

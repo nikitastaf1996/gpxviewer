@@ -47,6 +47,8 @@ document.addEventListener('alpine:init', () => {
                 this.map.removeLayer(this.currentTrack);
             }
 
+            Alpine.store('app').activeGpxStats.location = metadata.city || '-';
+
             this.currentTrack = new L.GPX(gpxData, {
                 async: true,
                 marker_options: {

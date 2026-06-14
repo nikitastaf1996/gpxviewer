@@ -52,6 +52,10 @@
                 <span class="stat-label">Elevation Loss</span>
                 <span class="stat-value" x-text="$store.app.activeGpxStats.elevationLoss || '-'">-</span>
             </div>
+            <div class="stat-item">
+                <span class="stat-label">Location</span>
+                <span class="stat-value" x-text="$store.app.activeGpxStats.location || '-'">-</span>
+            </div>
         </div>
 
         <div id="main-content">
@@ -176,6 +180,18 @@
             <div class="stat-card">
                 <span class="stat-label">Avg Pace</span>
                 <span class="stat-value" x-text="window.gpxUtils.formatPace($store.app.lifetimeStats.avgPace)">0:00 /km</span>
+            </div>
+        </div>
+
+        <div class="chart-section" x-show="$store.app.topLocations.length > 0">
+            <h3>Popular Locations</h3>
+            <div class="top-locations-list">
+                <template x-for="loc in $store.app.topLocations" :key="loc.name">
+                    <div class="location-chip">
+                        <span class="location-name" x-text="loc.name"></span>
+                        <span class="location-count" x-text="loc.count + ' runs'"></span>
+                    </div>
+                </template>
             </div>
         </div>
 

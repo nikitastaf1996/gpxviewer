@@ -487,6 +487,36 @@ canvas {
     color: var(--text-muted);
 }
 
+.top-locations-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.location-chip {
+    background: var(--bg-card);
+    padding: 0.75rem 1.25rem;
+    border-radius: 30px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+}
+
+.location-name {
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--primary-color);
+}
+
+.location-count {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
 .settings-select {
     padding: 0.5rem;
     border-radius: 8px;

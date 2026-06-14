@@ -53,6 +53,7 @@ window.gpxUtils = {
         return {
             date: startTime,
             distance: distKm,
+            duration: durationMs,
             avgPace: paceMinPerKm,
             lat: parseFloat(firstPt.getAttribute("lat")),
             lon: parseFloat(firstPt.getAttribute("lon"))

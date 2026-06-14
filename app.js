@@ -23,6 +23,13 @@ function app() {
         currentTrack: null,
         charts: {},
         db: null,
+        lifetimeStats: {
+            totalDistance: 0,
+            totalDuration: 0,
+            runCount: 0,
+            avgPace: 0
+        },
+        groupedFiles: [],
 
         async initDb() {
             return new Promise((resolve, reject) => {
@@ -181,6 +188,10 @@ function app() {
                     this.map.invalidateSize();
                     Object.values(this.charts).forEach(chart => chart.resize());
                 }, 100);
+            } else if (tabId === 'trends') {
+                setTimeout(() => {
+                    this.initTrendsChart();
+                }, 100);
             }
         },
 
@@ -204,6 +215,9 @@ function app() {
                 filename,
                 ...savedMeta[filename]
             })).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            this.calculateLifetimeStats();
+            this.groupFilesByMonth();
         },
 
         async handleZipFileUpload(e) {
@@ -313,7 +327,7 @@ function app() {
 
             return new Promise((resolve, reject) => {
                 transaction.oncomplete = async () => {
-                    this.savedFiles = [];
+                    await this.loadSavedMetadata();
                     this.activeGpx = null;
                     console.log('Library cleared.');
                     resolve();
@@ -393,6 +407,7 @@ function app() {
             return {
                 date: startTime,
                 distance: distKm,
+                duration: durationMs,
                 avgPace: paceMinPerKm,
                 lat: parseFloat(firstPt.getAttribute("lat")),
                 lon: parseFloat(firstPt.getAttribute("lon"))
@@ -718,6 +733,105 @@ function app() {
             const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
             const cityStr = meta.city ? ' - ' + meta.city : '';
             return `${dateStr}${cityStr} - ${meta.distance.toFixed(2)} km - ${this.formatPace(meta.avgPace)}`;
+        },
+
+        calculateLifetimeStats() {
+            let totalDist = 0;
+            let totalDur = 0;
+            let count = this.savedFiles.length;
+
+            this.savedFiles.forEach(file => {
+                totalDist += file.distance || 0;
+                totalDur += file.duration || 0;
+            });
+
+            this.lifetimeStats.totalDistance = totalDist.toFixed(1);
+
+            // Format duration for trends: "Xh Ym"
+            let s = Math.floor(totalDur / 1000);
+            const h = Math.floor(s / 3600);
+            s %= 3600;
+            const m = Math.floor(s / 60);
+            this.lifetimeStats.totalDuration = `${h}h ${m}m`;
+
+            this.lifetimeStats.runCount = count;
+
+            if (totalDist > 0) {
+                const paceMinPerKm = (totalDur / 1000 / 60) / totalDist;
+                this.lifetimeStats.avgPace = this.formatPace(paceMinPerKm);
+            } else {
+                this.lifetimeStats.avgPace = "-";
+            }
+        },
+
+        groupFilesByMonth() {
+            const groups = {};
+            this.savedFiles.forEach(file => {
+                const date = new Date(file.date);
+                const monthYear = date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+                if (!groups[monthYear]) {
+                    groups[monthYear] = [];
+                }
+                groups[monthYear].push(file);
+            });
+
+            this.groupedFiles = Object.keys(groups).map(monthYear => ({
+                monthYear,
+                files: groups[monthYear]
+            }));
+        },
+
+        initTrendsChart() {
+            if (this.savedFiles.length === 0) return;
+
+            const ctx = document.getElementById('monthly-volume-chart')?.getContext('2d');
+            if (!ctx) return;
+
+            // Group by month and year for the chart, but sort them chronologically
+            const monthlyData = {};
+            this.savedFiles.forEach(file => {
+                const date = new Date(file.date);
+                const key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+                const label = date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+                if (!monthlyData[key]) {
+                    monthlyData[key] = { label, distance: 0 };
+                }
+                monthlyData[key].distance += file.distance || 0;
+            });
+
+            const sortedKeys = Object.keys(monthlyData).sort();
+            const labels = sortedKeys.map(k => monthlyData[k].label);
+            const distances = sortedKeys.map(k => monthlyData[k].distance);
+
+            if (this.charts.trends) this.charts.trends.destroy();
+
+            this.charts.trends = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Distance (km)',
+                        data: distances,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgb(54, 162, 235)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: 'Monthly Distance Volume' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'km' }
+                        }
+                    }
+                }
+            });
         }
     };
 }

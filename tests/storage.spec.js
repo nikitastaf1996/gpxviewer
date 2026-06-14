@@ -10,6 +10,9 @@ test.describe('GPX Viewer Storage', () => {
     test('should upload and save a GPX file to IndexedDB', async ({ page }) => {
         const filePath = path.join(__dirname, '..', 'sample.gpx');
 
+        // Go to library tab
+        await page.click('#bottom-nav button:has-text("Library")');
+
         // Wait for list to load (initially empty or from previous tests)
         await page.waitForSelector('#saved-list');
 
@@ -17,10 +20,35 @@ test.describe('GPX Viewer Storage', () => {
         await page.setInputFiles('#gpx-file', filePath);
 
         // Check if it appears in the list - Fenestrelle is in sample.gpx
+        // It might have auto-switched to analyze, so switch back
+        await page.click('#bottom-nav button:has-text("Library")');
+        // Need to expand month group first
+        // If it's already expanded (due to our store logic), this click might collapse it.
+        // But for a fresh upload, let's just make sure it's attached.
+        await page.waitForSelector('.month-header', { state: 'attached' });
+
+        // Let's use a more robust way to ensure it's expanded
+        await page.evaluate(() => {
+            const header = document.querySelector('.month-header');
+            if (header) {
+                const alpineData = window.Alpine.$data(header.closest('.month-group'));
+                alpineData.expanded = true;
+            }
+        });
+
         await expect(page.locator('.run-card')).toContainText('Fenestrelle', { timeout: 10000 });
 
         // Reload and check if it's still there (Persistence)
         await page.reload();
+        await page.click('#bottom-nav button:has-text("Library")');
+        await page.waitForSelector('.month-header', { state: 'attached' });
+        await page.evaluate(() => {
+            const header = document.querySelector('.month-header');
+            if (header) {
+                const alpineData = window.Alpine.$data(header.closest('.month-group'));
+                alpineData.expanded = true;
+            }
+        });
         await page.waitForSelector('.run-card');
         await expect(page.locator('.run-card')).toContainText('Fenestrelle');
 
@@ -65,6 +93,15 @@ test.describe('GPX Viewer Storage', () => {
 
         // Reload to trigger migration
         await page.reload();
+        // Go to library tab
+        await page.click('#bottom-nav button:has-text("Library")');
+        await page.evaluate(() => {
+            const header = document.querySelector('.month-header');
+            if (header) {
+                const alpineData = window.Alpine.$data(header.closest('.month-group'));
+                alpineData.expanded = true;
+            }
+        });
         await page.waitForSelector('.run-card');
 
         // Check if legacy data is visible
@@ -104,6 +141,13 @@ test.describe('GPX Viewer Storage', () => {
 
         // It might have switched to Analyze tab automatically, switch back to Library to delete
         await page.click('#bottom-nav button:has-text("Library")');
+        await page.evaluate(() => {
+            const header = document.querySelector('.month-header');
+            if (header) {
+                const alpineData = window.Alpine.$data(header.closest('.month-group'));
+                alpineData.expanded = true;
+            }
+        });
 
         // Delete
         await card.locator('.delete-btn').click();

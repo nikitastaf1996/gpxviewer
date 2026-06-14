@@ -10,6 +10,7 @@
     <link href='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css' rel='stylesheet' />
     <link rel="stylesheet" href="./styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body x-data>
@@ -97,16 +98,21 @@
     </div>
     <div id="saved-list">
         <template x-for="group in $store.app.groupedFiles" :key="group.label">
-            <div>
-                <div class="month-header" x-text="group.label"></div>
-                <template x-for="file in group.files" :key="file.filename">
-                    <div class="run-card" x-on:click="displayGpx(file)">
-                        <div class="run-info">
-                            <div class="run-main-info" x-text="formatRunCard(file)"></div>
+            <div x-data="{ expanded: group.expanded || false }" class="month-group">
+                <div class="month-header" x-on:click="expanded = !expanded">
+                    <span x-text="group.label"></span>
+                    <span class="toggle-icon" x-text="expanded ? '−' : '+'"></span>
+                </div>
+                <div x-show="expanded" x-collapse>
+                    <template x-for="file in group.files" :key="file.filename">
+                        <div class="run-card" x-on:click="displayGpx(file)">
+                            <div class="run-info">
+                                <div class="run-main-info" x-text="formatRunCard(file)"></div>
+                            </div>
+                            <button class="delete-btn" x-on:click.stop="deleteGpx(file.filename)">Delete</button>
                         </div>
-                        <button class="delete-btn" x-on:click.stop="deleteGpx(file.filename)">Delete</button>
-                    </div>
-                </template>
+                    </template>
+                </div>
             </div>
         </template>
         <div x-show="$store.app.savedFiles.length === 0" class="placeholder-ui">

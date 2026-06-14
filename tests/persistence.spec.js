@@ -35,7 +35,7 @@ test.describe('Persistence', () => {
     // Check if run is still in library
     await page.click('#bottom-nav button:has-text("Library")');
     await expect(page.locator('.run-card')).toBeVisible();
-    await expect(page.locator('.run-card')).toContainText('29 Aug 2025');
+    await expect(page.locator('.run-card')).toContainText('29 Aug');
   });
 
   test('should persist settings after reload', async ({ page }) => {

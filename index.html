@@ -22,7 +22,9 @@
 <div id="tab-analyze" class="tab-content" x-data="analyze" x-show="$store.app.activeTab === 'analyze'" :class="{ 'active': $store.app.activeTab === 'analyze' }">
     <div id="analyze-fallback" class="fallback-ui" x-show="!$store.app.activeGpx">
         <div class="fallback-content">
-            <span class="fallback-icon">🗺️</span>
+            <span class="fallback-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></svg>
+            </span>
             <p>Select a run from your Library to begin analysis.</p>
             <button x-on:click="$store.app.showTab('library')" class="action-btn-primary">Go to Library</button>
         </div>
@@ -79,21 +81,24 @@
 <div id="tab-library" class="tab-content" x-data="library" x-show="$store.app.activeTab === 'library'" :class="{ 'active': $store.app.activeTab === 'library' }">
     <div class="tab-header">
         <h2>Library</h2>
-        <div style="display: flex; gap: 0.5rem;">
-            <label for="zip-file" class="add-btn" title="Import ZIP" style="background-color: #28a745; font-size: 14px; font-weight: bold;">
-                <span>ZIP</span>
+        <div style="display: flex; gap: 0.75rem;">
+            <label for="zip-file" class="add-btn-secondary" title="Import ZIP">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
                 <input type="file" id="zip-file" accept=".zip" x-on:change="handleZipFileUpload" />
             </label>
             <label for="gpx-file" class="add-btn" title="Add GPX File">
-                <span>+</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 <input type="file" id="gpx-file" accept=".gpx" x-on:change="handleFileUpload" />
             </label>
         </div>
     </div>
-    <div x-show="isImporting" style="padding: 1rem; background: #eee; border-bottom: 1px solid #ddd;">
-        <div style="margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: bold;">Importing... <span x-text="importProgress + '%'"></span></div>
-        <div style="width: 100%; background: #ccc; height: 10px; border-radius: 5px; overflow: hidden;">
-            <div :style="'width: ' + importProgress + '%; background: #28a745; height: 100%; transition: width 0.2s;'"></div>
+    <div x-show="isImporting" class="import-progress-container">
+        <div class="import-progress-header">
+            <span>Importing activity...</span>
+            <span x-text="importProgress + '%'"></span>
+        </div>
+        <div class="import-progress-bar-bg">
+            <div class="import-progress-bar-fill" :style="'width: ' + importProgress + '%;'"></div>
         </div>
     </div>
     <div id="saved-list">
@@ -106,10 +111,23 @@
                 <div x-show="expanded" x-collapse>
                     <template x-for="file in group.files" :key="file.filename">
                         <div class="run-card" x-on:click="displayGpx(file)">
-                            <div class="run-info">
-                                <div class="run-main-info" x-text="formatRunCard(file)"></div>
+                            <div class="run-icon-circle">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 8-4 4 4 4"/><path d="M6 12h8"/><rect width="20" height="16" x="2" y="4" rx="2"/></svg>
                             </div>
-                            <button class="delete-btn" x-on:click.stop="deleteGpx(file.filename)">Delete</button>
+                            <div class="run-info">
+                                <div class="run-main-info">
+                                    <span x-text="file.distance.toFixed(2) + ' km'"></span>
+                                    <span class="run-city" x-text="file.city"></span>
+                                </div>
+                                <div class="run-meta-info">
+                                    <span x-text="new Date(file.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })"></span>
+                                    <span class="dot-separator">•</span>
+                                    <span x-text="window.gpxUtils.formatPace(file.avgPace)"></span>
+                                </div>
+                            </div>
+                            <button class="delete-btn-ghost" x-on:click.stop="deleteGpx(file.filename)" title="Delete run">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                            </button>
                         </div>
                     </template>
                 </div>
@@ -117,7 +135,9 @@
         </template>
         <div x-show="$store.app.savedFiles.length === 0" class="placeholder-ui">
             <div class="fallback-content">
-                <span class="fallback-icon">📂</span>
+                <span class="fallback-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+                </span>
                 <p>Your library is empty. Upload a GPX file to get started!</p>
             </div>
         </div>
@@ -131,7 +151,9 @@
 
     <div id="trends-empty" class="placeholder-ui" x-show="$store.app.savedFiles.length === 0">
         <div class="fallback-content">
-            <span class="fallback-icon">📈</span>
+            <span class="fallback-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+            </span>
             <p>No data available. Upload your first GPX file in your Library to view your running trends!</p>
             <button x-on:click="$store.app.showTab('library')" class="action-btn-primary">Go to Library</button>
         </div>
@@ -201,19 +223,27 @@
 
 <nav id="bottom-nav">
     <button class="nav-item" :class="{ 'active': $store.app.activeTab === 'analyze' }" x-on:click="$store.app.showTab('analyze')">
-        <span class="nav-icon">📊</span>
+        <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16h8"/><path d="M7 11h12"/><path d="M7 6h5"/></svg>
+        </span>
         <span class="nav-label">Analyze</span>
     </button>
     <button class="nav-item" :class="{ 'active': $store.app.activeTab === 'library' }" x-on:click="$store.app.showTab('library')">
-        <span class="nav-icon">📚</span>
+        <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
+        </span>
         <span class="nav-label">Library</span>
     </button>
     <button class="nav-item" :class="{ 'active': $store.app.activeTab === 'trends' }" x-on:click="$store.app.showTab('trends')">
-        <span class="nav-icon">📈</span>
+        <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+        </span>
         <span class="nav-label">Trends</span>
     </button>
     <button class="nav-item" :class="{ 'active': $store.app.activeTab === 'settings' }" x-on:click="$store.app.showTab('settings')">
-        <span class="nav-icon">⚙️</span>
+        <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        </span>
         <span class="nav-label">Settings</span>
     </button>
 </nav>

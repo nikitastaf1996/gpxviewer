@@ -3,3 +3,5 @@ node_modules/
 verify_output*.txt
 .DS_Store
 *.log
+playwright-report/
+test-results/

@@ -24,9 +24,7 @@ document.addEventListener('alpine:init', () => {
                     const filename = gpxFiles[i];
                     const gpxData = await zip.files[filename].async('string');
                     const metadata = window.gpxUtils.parseGpxMetadata(gpxData);
-                    if (metadata) {
-                        metadata.city = await window.gpxUtils.fetchCityName(metadata.lat, metadata.lon);
-                    }
+
                     tracks.push({
                         name: filename.split('/').pop(), // Use just the filename without path
                         data: gpxData,
@@ -39,6 +37,7 @@ document.addEventListener('alpine:init', () => {
                 if (tracks.length > 0) {
                     await window.dbManager.saveGpxBulk(tracks);
                     await Alpine.store('app').loadSavedMetadata();
+                    window.geocoder.wakeUp();
                     this.displayGpx({ filename: tracks[0].name, ...tracks[0].metadata });
                 }
             } catch (error) {
@@ -60,11 +59,10 @@ document.addEventListener('alpine:init', () => {
             reader.onload = async (e) => {
                 const gpxData = e.target.result;
                 const metadata = window.gpxUtils.parseGpxMetadata(gpxData);
-                if (metadata) {
-                    metadata.city = await window.gpxUtils.fetchCityName(metadata.lat, metadata.lon);
-                }
+
                 await window.dbManager.saveGpxBulk([{ name: file.name, data: gpxData, metadata }]);
                 await Alpine.store('app').loadSavedMetadata();
+                window.geocoder.wakeUp();
                 this.displayGpx({ filename: file.name, ...metadata });
             };
             reader.readAsText(file);

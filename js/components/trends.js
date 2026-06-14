@@ -1,11 +1,23 @@
 document.addEventListener('alpine:init', () => {
     Alpine.data('trends', () => ({
         chart: null,
+        isInitialized: false,
 
         init() {
-            this.$watch('$store.app.groupedFiles', () => {
+            if (this.isInitialized) return;
+            this.isInitialized = true;
+
+            this.$watch('$store.app.groupedFiles', (newValue, oldValue) => {
                 if (Alpine.store('app').activeTab === 'trends') {
-                    setTimeout(() => this.updateChart(), 200);
+                    // Only update chart if the number of files or total distance changed
+                    const newTotalFiles = newValue.reduce((sum, g) => sum + g.files.length, 0);
+                    const oldTotalFiles = oldValue ? oldValue.reduce((sum, g) => sum + g.files.length, 0) : 0;
+                    const newTotalDist = newValue.reduce((sum, g) => sum + g.totalDistance, 0);
+                    const oldTotalDist = oldValue ? oldValue.reduce((sum, g) => sum + g.totalDistance, 0) : 0;
+
+                    if (newTotalFiles !== oldTotalFiles || Math.abs(newTotalDist - oldTotalDist) > 0.01) {
+                        setTimeout(() => this.updateChart(), 200);
+                    }
                 }
             });
 

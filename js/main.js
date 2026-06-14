@@ -7,6 +7,9 @@ document.addEventListener('alpine:init', async () => {
         await appStore.loadSettings();
         await appStore.loadSavedMetadata();
 
+        // Start background geocoder
+        window.geocoder.start();
+
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW failed:', err));
         }

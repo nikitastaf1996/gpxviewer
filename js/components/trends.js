@@ -41,8 +41,9 @@ document.addEventListener('alpine:init', () => {
                     datasets: [{
                         label: 'Distance (km)',
                         data: groups.map(g => g.totalDistance),
-                        backgroundColor: '#007bff',
-                        borderRadius: 4
+                        backgroundColor: '#0062ff',
+                        borderRadius: 8,
+                        hoverBackgroundColor: '#004ecc'
                     }]
                 },
                 options: {
@@ -51,15 +52,30 @@ document.addEventListener('alpine:init', () => {
                     plugins: {
                         legend: {
                             display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 13 },
+                            displayColors: false,
+                            callbacks: {
+                                label: (context) => `Total: ${context.parsed.y.toFixed(2)} km`
+                            }
                         }
                     },
                     scales: {
                         y: {
                             beginAtZero: true,
+                            grid: { color: '#f1f3f5' },
                             title: {
                                 display: true,
-                                text: 'Distance (km)'
+                                text: 'Distance (km)',
+                                font: { weight: 'bold' }
                             }
+                        },
+                        x: {
+                            grid: { display: false }
                         }
                     }
                 }

@@ -94,22 +94,26 @@ document.addEventListener('alpine:init', () => {
                     datasets: [{
                         label: 'Elevation (m)',
                         data: data.map(d => ({x: d.dist, y: d.ele})),
-                        borderColor: 'rgb(75, 192, 192)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: '#0062ff',
+                        backgroundColor: 'rgba(0, 98, 255, 0.1)',
                         fill: true,
-                        pointRadius: data.map(d => (d.ele === minEle || d.ele === maxEle) ? 5 : 0),
-                        pointBackgroundColor: data.map(d => d.ele === maxEle ? 'red' : (d.ele === minEle ? 'blue' : 'transparent')),
-                        tension: 0.1
+                        pointRadius: data.map(d => (d.ele === minEle || d.ele === maxEle) ? 4 : 0),
+                        pointBackgroundColor: data.map(d => d.ele === maxEle ? '#ff6b6b' : (d.ele === minEle ? '#4dabf7' : 'transparent')),
+                        borderWidth: 2,
+                        tension: 0.3
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        x: { type: "linear", title: { display: true, text: 'Distance (km)' } },
+                        x: { type: "linear", title: { display: false } },
                         y: { title: { display: true, text: 'Elevation (m)' } }
                     },
-                    plugins: { title: { display: true, text: 'Elevation Profile' } }
+                    plugins: {
+                        title: { display: true, text: 'Elevation Profile', align: 'start', font: { size: 14, weight: 'bold' } },
+                        legend: { display: false }
+                    }
                 }
             });
         },
@@ -122,23 +126,23 @@ document.addEventListener('alpine:init', () => {
                 data: {
                     datasets: [
                         {
-                            label: 'Pace (min/km)',
+                            label: 'Pace',
                             data: data.map(d => ({x: d.dist, y: d.smoothedPace > 0 && d.smoothedPace < 20 ? d.smoothedPace : null})),
-                            borderColor: 'rgb(255, 99, 132)',
+                            borderColor: '#ff6b6b',
                             backgroundColor: 'transparent',
-                            borderWidth: 2,
+                            borderWidth: 2.5,
                             pointRadius: 0,
-                            tension: 0.3
+                            tension: 0.4
                         },
                         {
-                            label: 'GAP (min/km)',
+                            label: 'GAP',
                             data: data.map(d => ({x: d.dist, y: d.smoothedGap > 0 && d.smoothedGap < 20 ? d.smoothedGap : null})),
-                            borderColor: 'rgba(255, 159, 64, 0.5)',
+                            borderColor: '#fab005',
                             backgroundColor: 'transparent',
-                            borderDash: [5, 5],
+                            borderDash: [4, 4],
                             borderWidth: 2,
                             pointRadius: 0,
-                            tension: 0.3
+                            tension: 0.4
                         }
                     ]
                 },
@@ -146,10 +150,13 @@ document.addEventListener('alpine:init', () => {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        x: { type: "linear", title: { display: true, text: 'Distance (km)' } },
+                        x: { type: "linear", title: { display: false } },
                         y: { reverse: true, title: { display: true, text: 'Pace (min/km)' }, suggestedMin: 3, suggestedMax: 10 }
                     },
-                    plugins: { title: { display: true, text: 'Pace & Grade Adjusted Pace' } }
+                    plugins: {
+                        title: { display: true, text: 'Pace & Grade Adjusted Pace', align: 'start', font: { size: 14, weight: 'bold' } },
+                        legend: { position: 'top', align: 'end', labels: { boxWidth: 12, usePointStyle: true, pointStyle: 'circle' } }
+                    }
                 }
             });
         },
@@ -162,20 +169,22 @@ document.addEventListener('alpine:init', () => {
                 data: {
                     datasets: [
                         {
-                            label: 'Elevation (m)',
+                            label: 'Elevation',
                             data: data.map(d => ({x: d.dist, y: d.ele})),
-                            borderColor: 'rgb(75, 192, 192)',
+                            borderColor: '#0062ff',
                             yAxisID: 'y-ele',
                             fill: false,
-                            pointRadius: 0
+                            pointRadius: 0,
+                            borderWidth: 2
                         },
                         {
-                            label: 'Pace (min/km)',
+                            label: 'Pace',
                             data: data.map(d => ({x: d.dist, y: d.smoothedPace > 0 && d.smoothedPace < 20 ? d.smoothedPace : null})),
-                            borderColor: 'rgb(255, 99, 132)',
+                            borderColor: '#ff6b6b',
                             yAxisID: 'y-pace',
                             fill: false,
-                            pointRadius: 0
+                            pointRadius: 0,
+                            borderWidth: 2
                         }
                     ]
                 },
@@ -183,11 +192,14 @@ document.addEventListener('alpine:init', () => {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        x: { type: "linear", title: { display: true, text: 'Distance (km)' } },
+                        x: { type: "linear", title: { display: false } },
                         'y-ele': { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Elevation (m)' } },
                         'y-pace': { type: 'linear', display: true, position: 'right', reverse: true, title: { display: true, text: 'Pace (min/km)' }, grid: { drawOnChartArea: false }, suggestedMin: 3, suggestedMax: 10 }
                     },
-                    plugins: { title: { display: true, text: 'Elevation & Pace (Synchronized)' } }
+                    plugins: {
+                        title: { display: true, text: 'Elevation & Pace', align: 'start', font: { size: 14, weight: 'bold' } },
+                        legend: { position: 'top', align: 'end', labels: { boxWidth: 12 } }
+                    }
                 }
             });
         },
@@ -220,14 +232,20 @@ document.addEventListener('alpine:init', () => {
             this.charts.climb = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: climbs.map((_, i) => "Climb #" + (i + 1)),
-                    datasets: [{ label: 'Avg Pace on Climb (min/km)', data: climbs.map(c => c.avgPace), backgroundColor: 'rgba(153, 102, 255, 0.6)' }]
+                    labels: climbs.map((_, i) => "Climb " + (i + 1)),
+                    datasets: [{ label: 'Avg Pace', data: climbs.map(c => c.avgPace), backgroundColor: 'rgba(130, 201, 30, 0.7)', borderRadius: 6 }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { title: { display: true, text: 'Hill Consistency Matrix' } },
-                    scales: { y: { reverse: true, title: { display: true, text: 'Avg Pace (min/km)' } } }
+                    plugins: {
+                        title: { display: true, text: 'Hill Consistency Matrix', align: 'start', font: { size: 14, weight: 'bold' } },
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { reverse: true, title: { display: true, text: 'Avg Pace (min/km)' } },
+                        x: { grid: { display: false } }
+                    }
                 }
             });
         },
@@ -242,7 +260,7 @@ document.addEventListener('alpine:init', () => {
                 if (data[i].dist >= nextSplit || i === data.length - 1) {
                     const dDist = data[i].dist - splitStartDist;
                     const dTime = (points[i].time - splitStartTime) / 1000 / 60;
-                    if (dDist > 0.1) splits.push({ label: "Split " + (splits.length + 1), pace: dTime / dDist });
+                    if (dDist > 0.1) splits.push({ label: (splits.length + 1), pace: dTime / dDist });
                     splitStartDist = data[i].dist;
                     splitStartTime = points[i].time;
                     nextSplit += splitDist;
@@ -256,13 +274,19 @@ document.addEventListener('alpine:init', () => {
                 type: 'bar',
                 data: {
                     labels: splits.map(s => s.label),
-                    datasets: [{ label: 'Split Pace (min/km)', data: splits.map(s => s.pace), backgroundColor: splits.map(s => s.pace <= avgPace ? 'rgba(75, 192, 192, 0.6)' : 'rgba(255, 99, 132, 0.6)') }]
+                    datasets: [{ label: 'Split Pace', data: splits.map(s => s.pace), backgroundColor: splits.map(s => s.pace <= avgPace ? 'rgba(51, 209, 122, 0.7)' : 'rgba(255, 107, 107, 0.7)'), borderRadius: 6 }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { title: { display: true, text: 'Split Performance (1km)' } },
-                    scales: { y: { reverse: true, title: { display: true, text: 'Pace (min/km)' } } }
+                    plugins: {
+                        title: { display: true, text: 'Split Performance (1km)', align: 'start', font: { size: 14, weight: 'bold' } },
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { reverse: true, title: { display: true, text: 'Pace (min/km)' } },
+                        x: { title: { display: true, text: 'Kilometer' }, grid: { display: false } }
+                    }
                 }
             });
         }

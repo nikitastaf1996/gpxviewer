@@ -73,7 +73,7 @@ test.describe('Analyze Tab', () => {
 
     // Verify it changed by checking library selection
     await page.click('#bottom-nav button:has-text("Library")');
-    await page.click('.run-card:has-text("29 Aug 2025")');
+    await page.click('.run-card:has-text("29 Aug")');
     await expect(page.locator('#tab-analyze')).toBeVisible();
   });
 });

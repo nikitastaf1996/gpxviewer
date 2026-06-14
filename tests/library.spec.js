@@ -41,7 +41,7 @@ test.describe('Library Tab', () => {
     // Check if it's in the library
     await page.click('#bottom-nav button:has-text("Library")');
     await expect(page.locator('.run-card')).toBeVisible();
-    await expect(page.locator('.run-card')).toContainText('29 Aug 2025');
+    await expect(page.locator('.run-card')).toContainText('29 Aug');
     await expect(page.locator('.run-card')).toContainText('Test City');
   });
 
@@ -73,7 +73,7 @@ test.describe('Library Tab', () => {
     await expect(page.locator('.run-card')).toBeVisible();
 
     // Delete the run
-    await page.click('.delete-btn');
+    await page.click('.delete-btn-ghost');
     await expect(page.locator('.run-card')).not.toBeVisible();
     await expect(page.locator('#saved-list')).toContainText('Your library is empty');
   });

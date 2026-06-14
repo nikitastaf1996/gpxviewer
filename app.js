@@ -2,6 +2,8 @@ function app() {
     return {
         activeTab: 'library',
         savedFiles: [],
+        isImporting: false,
+        importProgress: 0,
         activeGpx: null,
         activeGpxStats: {
             distance: null,
@@ -204,6 +206,54 @@ function app() {
             })).sort((a, b) => new Date(b.date) - new Date(a.date));
         },
 
+        async handleZipFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            await this.handleZipUpload(file);
+        },
+
+        async handleZipUpload(file) {
+            this.isImporting = true;
+            this.importProgress = 0;
+
+            try {
+                const zip = await JSZip.loadAsync(file);
+                const tracks = [];
+
+                const gpxFiles = Object.keys(zip.files).filter(name => name.toLowerCase().endsWith('.gpx') && !zip.files[name].dir);
+                const totalFiles = gpxFiles.length;
+
+                for (let i = 0; i < totalFiles; i++) {
+                    const filename = gpxFiles[i];
+                    const gpxData = await zip.files[filename].async('string');
+                    const metadata = this.parseGpxMetadata(gpxData);
+                    if (metadata) {
+                        metadata.city = await this.fetchCityName(metadata.lat, metadata.lon);
+                    }
+                    tracks.push({
+                        name: filename.split('/').pop(), // Use just the filename without path
+                        data: gpxData,
+                        metadata: metadata
+                    });
+
+                    this.importProgress = Math.round(((i + 1) / totalFiles) * 100);
+                }
+
+                if (tracks.length > 0) {
+                    await this.saveGpxBulk(tracks);
+                    this.displayGpx({ filename: tracks[0].name, ...tracks[0].metadata });
+                }
+            } catch (error) {
+                console.error('ZIP import failed:', error);
+                alert('Failed to import ZIP file.');
+            } finally {
+                setTimeout(() => {
+                    this.isImporting = false;
+                    this.importProgress = 0;
+                }, 500); // Keep progress bar visible for a moment
+            }
+        },
+
         async handleFileUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -215,19 +265,35 @@ function app() {
                 if (metadata) {
                     metadata.city = await this.fetchCityName(metadata.lat, metadata.lon);
                 }
-                this.saveGpx(file.name, gpxData, metadata);
+                await this.saveGpx(file.name, gpxData, metadata);
                 this.displayGpx({ filename: file.name, ...metadata });
             };
             reader.readAsText(file);
         },
 
         async saveGpx(name, data, metadata) {
-            await this.dbSet('files', name, data);
+            await this.saveGpxBulk([{ name, data, metadata }]);
+        },
 
-            if (metadata) {
-                await this.dbSet('metadata', name, metadata);
-            }
-            await this.loadSavedMetadata();
+        async saveGpxBulk(tracks) {
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction(['files', 'metadata'], 'readwrite');
+                const fileStore = transaction.objectStore('files');
+                const metaStore = transaction.objectStore('metadata');
+
+                tracks.forEach(track => {
+                    fileStore.put(track.data, track.name);
+                    if (track.metadata) {
+                        metaStore.put(track.metadata, track.name);
+                    }
+                });
+
+                transaction.oncomplete = async () => {
+                    await this.loadSavedMetadata();
+                    resolve();
+                };
+                transaction.onerror = (e) => reject(e.target.error);
+            });
         },
 
         async deleteGpx(name) {
@@ -238,6 +304,22 @@ function app() {
                 this.activeGpx = null;
             }
             await this.loadSavedMetadata();
+        },
+
+        async clearLibrary() {
+            const transaction = this.db.transaction(['files', 'metadata'], 'readwrite');
+            transaction.objectStore('files').clear();
+            transaction.objectStore('metadata').clear();
+
+            return new Promise((resolve, reject) => {
+                transaction.oncomplete = async () => {
+                    this.savedFiles = [];
+                    this.activeGpx = null;
+                    console.log('Library cleared.');
+                    resolve();
+                };
+                transaction.onerror = (e) => reject(e.target.error);
+            });
         },
 
         async displayGpx(metadata) {

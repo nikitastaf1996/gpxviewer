@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css' rel='stylesheet' />
     <link rel="stylesheet" href="./styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body x-data="app()">
@@ -77,10 +78,22 @@
 <div id="tab-library" class="tab-content" x-show="activeTab === 'library'" :class="{ 'active': activeTab === 'library' }">
     <div class="tab-header">
         <h2>Library</h2>
-        <label for="gpx-file" class="add-btn" title="Add GPX File">
-            <span>+</span>
-            <input type="file" id="gpx-file" accept=".gpx" x-on:change="handleFileUpload" />
-        </label>
+        <div style="display: flex; gap: 0.5rem;">
+            <label for="zip-file" class="add-btn" title="Import ZIP" style="background-color: #28a745; font-size: 14px; font-weight: bold;">
+                <span>ZIP</span>
+                <input type="file" id="zip-file" accept=".zip" x-on:change="handleZipFileUpload" />
+            </label>
+            <label for="gpx-file" class="add-btn" title="Add GPX File">
+                <span>+</span>
+                <input type="file" id="gpx-file" accept=".gpx" x-on:change="handleFileUpload" />
+            </label>
+        </div>
+    </div>
+    <div x-show="isImporting" style="padding: 1rem; background: #eee; border-bottom: 1px solid #ddd;">
+        <div style="margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: bold;">Importing... <span x-text="importProgress + '%'"></span></div>
+        <div style="width: 100%; background: #ccc; height: 10px; border-radius: 5px; overflow: hidden;">
+            <div :style="'width: ' + importProgress + '%; background: #28a745; height: 100%; transition: width 0.2s;'"></div>
+        </div>
     </div>
     <div id="saved-list">
         <template x-for="file in savedFiles" :key="file.filename">
@@ -129,6 +142,10 @@
         <div class="setting-item">
             <label>Split Performance</label>
             <input type="checkbox" x-model="visibleCharts.splits" x-on:change="saveSettings()">
+        </div>
+        <h3>Danger Zone</h3>
+        <div class="setting-item">
+            <button x-on:click="if(confirm('Are you sure you want to clear your entire library?')) clearLibrary()" class="delete-btn" style="width: 100%;">Clear Library</button>
         </div>
     </div>
 </div>

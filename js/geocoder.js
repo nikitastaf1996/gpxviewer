@@ -63,7 +63,7 @@ window.geocoder = {
 
                     // Refresh Alpine store if available
                     if (window.Alpine && Alpine.store('app')) {
-                        await Alpine.store('app').loadSavedMetadata();
+                        Alpine.store('app').updateCityMetadata(item.name, currentMeta.city);
                     }
 
                     // Respect rate limits

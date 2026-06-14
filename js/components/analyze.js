@@ -3,8 +3,13 @@ document.addEventListener('alpine:init', () => {
         map: null,
         currentTrack: null,
         charts: {},
+        isInitialized: false,
 
         init() {
+            // Prevent multiple initializations if Alpine re-renders
+            if (this.isInitialized) return;
+            this.isInitialized = true;
+
             this.map = L.map('map', {
                 fullscreenControl: true
             }).setView([0, 0], 2);
@@ -83,7 +88,12 @@ document.addEventListener('alpine:init', () => {
 
         createElevationChart(data) {
             if (this.charts.elevation) this.charts.elevation.destroy();
-            const ctx = document.getElementById('elevation-chart').getContext('2d');
+            const canvas = document.getElementById('elevation-chart');
+            if (!canvas) {
+                console.error('Elevation chart canvas not found!');
+                return;
+            }
+            const ctx = canvas.getContext('2d');
             const eleData = data.map(d => d.ele);
             const minEle = Math.min(...eleData);
             const maxEle = Math.max(...eleData);

@@ -82,6 +82,28 @@ document.addEventListener('alpine:init', () => {
                 groupList[0].expanded = true;
             }
             this.groupedFiles = groupList;
+        },
+
+        updateCityMetadata(filename, city) {
+            // Update in savedFiles
+            const file = this.savedFiles.find(f => f.filename === filename);
+            if (file) {
+                file.city = city;
+            }
+
+            // Update in groupedFiles
+            for (const group of this.groupedFiles) {
+                const groupFile = group.files.find(f => f.filename === filename);
+                if (groupFile) {
+                    groupFile.city = city;
+                    break;
+                }
+            }
+
+            // Update activeGpx if it matches
+            if (this.activeGpx && this.activeGpx.filename === filename) {
+                this.activeGpx.city = city;
+            }
         }
     });
 });

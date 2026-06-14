@@ -1,30 +1,54 @@
 # Simple GPX Viewer for Runners
 
-A simple, web-based GPX file viewer designed for runners. Upload your GPX tracks to visualize them on a map and see key statistics.
+A feature-rich, privacy-focused, web-based GPX file viewer designed specifically for runners. Visualize your tracks, analyze your performance with advanced charts, and manage your run library entirely in your browser.
 
-## Features
+## 🚀 Features
 
-- **Map Visualization**: View your running route on an interactive OpenStreetMap.
-- **Statistics**:
+- **Interactive Map Visualization**: View your running routes on a high-quality OpenStreetMap with fullscreen support.
+- **Comprehensive Statistics**:
   - Distance (km)
-  - Total Time
+  - Total Duration
   - Average Pace (min/km)
-  - Elevation Gain/Loss (m)
-- **Privacy**: All processing is done in your browser. No data is uploaded to any server.
+  - Elevation Gain & Loss (m)
+- **Advanced Performance Charts**:
+  - **Elevation Profile**: Detailed altitude changes throughout your run.
+  - **Pace & GAP**: Track your actual pace alongside Grade-Adjusted Pace (GAP) to see how hills affect your effort.
+  - **Synchronized Combo Chart**: Overlay elevation and pace to identify performance trends on different terrains.
+  - **Hill Consistency Matrix**: Analyze your consistency across different climbs.
+  - **Split Performance**: Automatic 1km split breakdown with performance color-coding.
+- **Run Library**:
+  - **Persistent Storage**: Uses IndexedDB to save your runs locally in your browser.
+  - **Bulk Import**: Upload multiple GPX files at once using ZIP archives.
+  - **Automatic Geocoding**: Automatically identifies the closest city/town for each run.
+- **Progressive Web App (PWA)**: Installable on mobile and desktop for offline use.
+- **🔒 Privacy First**: All processing and data storage happen locally in your browser. Your GPX data is never uploaded to any server.
 
-## How to Use
+## 🛠 Technologies Used
 
-1. Open `index.html` in any modern web browser.
-2. Click the "Choose File" button.
-3. Select a `.gpx` file from your computer.
-4. The map will automatically zoom to your track, and statistics will be displayed.
+- **[Alpine.js](https://alpinejs.dev/)**: Reactive UI framework for a smooth, single-page experience.
+- **[Leaflet.js](https://leafletjs.com/)**: Interactive map engine.
+- **[Chart.js](https://www.chartjs.org/)**: Powerful data visualization for performance metrics.
+- **[JSZip](https://stuk.github.io/jszip/)**: Client-side ZIP decompression for bulk imports.
+- **[IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)**: Reliable, high-capacity local data storage.
+- **[OpenStreetMap Nominatim](https://nominatim.openstreetmap.org/)**: Reverse geocoding for run locations.
 
-## Deployment
+## 📖 How to Use
 
-This project is compatible with GitHub Pages. Simply host the `index.html` file on your GitHub repository and enable GitHub Pages in the repository settings.
+1. **Access the App**: Open the `index.html` file or access the hosted version.
+2. **Import Runs**:
+   - Go to the **Library** tab.
+   - Click **+** to add a single `.gpx` file.
+   - Click **ZIP** to import multiple files from a ZIP archive.
+3. **Analyze**:
+   - Select a run from your Library to open it in the **Analyze** tab.
+   - Explore the map and scroll down to view various performance charts.
+4. **Settings**:
+   - Toggle the visibility of specific charts to customize your dashboard.
+   - Use the "Clear Library" option to reset your local data.
 
-## Technologies Used
+## 🌐 Deployment
 
-- [Leaflet.js](https://leafletjs.com/) - Mobile-friendly interactive maps.
-- [leaflet-gpx](https://github.com/mpetazzoni/leaflet-gpx) - Leaflet plugin for GPX tracks.
-- [OpenStreetMap](https://www.openstreetmap.org/) - Map data.
+This project is optimized for **GitHub Pages**. Simply host the files in a GitHub repository and enable Pages in the settings. Ensure all asset paths remain relative to support sub-path deployments.
+
+---
+*Built for runners who value their data and privacy.*

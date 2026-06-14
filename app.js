@@ -204,30 +204,76 @@ function app() {
             })).sort((a, b) => new Date(b.date) - new Date(a.date));
         },
 
-        async handleFileUpload(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+        async handleZipUpload(file) {
+            const zip = await JSZip.loadAsync(file);
+            const tracks = [];
 
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const gpxData = e.target.result;
+            const gpxFiles = Object.keys(zip.files).filter(name => name.toLowerCase().endsWith('.gpx') && !zip.files[name].dir);
+
+            for (const filename of gpxFiles) {
+                const gpxData = await zip.files[filename].async('string');
                 const metadata = this.parseGpxMetadata(gpxData);
                 if (metadata) {
                     metadata.city = await this.fetchCityName(metadata.lat, metadata.lon);
                 }
-                this.saveGpx(file.name, gpxData, metadata);
-                this.displayGpx({ filename: file.name, ...metadata });
-            };
-            reader.readAsText(file);
+                tracks.push({
+                    name: filename.split('/').pop(), // Use just the filename without path
+                    data: gpxData,
+                    metadata: metadata
+                });
+            }
+
+            if (tracks.length > 0) {
+                await this.saveGpxBulk(tracks);
+                // Optionally show the first one
+                this.displayGpx({ filename: tracks[0].name, ...tracks[0].metadata });
+            }
+        },
+
+        async handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.name.toLowerCase().endsWith('.zip')) {
+                await this.handleZipUpload(file);
+            } else {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const gpxData = e.target.result;
+                    const metadata = this.parseGpxMetadata(gpxData);
+                    if (metadata) {
+                        metadata.city = await this.fetchCityName(metadata.lat, metadata.lon);
+                    }
+                    await this.saveGpx(file.name, gpxData, metadata);
+                    this.displayGpx({ filename: file.name, ...metadata });
+                };
+                reader.readAsText(file);
+            }
         },
 
         async saveGpx(name, data, metadata) {
-            await this.dbSet('files', name, data);
+            await this.saveGpxBulk([{ name, data, metadata }]);
+        },
 
-            if (metadata) {
-                await this.dbSet('metadata', name, metadata);
-            }
-            await this.loadSavedMetadata();
+        async saveGpxBulk(tracks) {
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction(['files', 'metadata'], 'readwrite');
+                const fileStore = transaction.objectStore('files');
+                const metaStore = transaction.objectStore('metadata');
+
+                tracks.forEach(track => {
+                    fileStore.put(track.data, track.name);
+                    if (track.metadata) {
+                        metaStore.put(track.metadata, track.name);
+                    }
+                });
+
+                transaction.oncomplete = async () => {
+                    await this.loadSavedMetadata();
+                    resolve();
+                };
+                transaction.onerror = (e) => reject(e.target.error);
+            });
         },
 
         async deleteGpx(name) {
@@ -238,6 +284,22 @@ function app() {
                 this.activeGpx = null;
             }
             await this.loadSavedMetadata();
+        },
+
+        async clearLibrary() {
+            const transaction = this.db.transaction(['files', 'metadata'], 'readwrite');
+            transaction.objectStore('files').clear();
+            transaction.objectStore('metadata').clear();
+
+            return new Promise((resolve, reject) => {
+                transaction.oncomplete = async () => {
+                    this.savedFiles = [];
+                    this.activeGpx = null;
+                    console.log('Library cleared.');
+                    resolve();
+                };
+                transaction.onerror = (e) => reject(e.target.error);
+            });
         },
 
         async displayGpx(metadata) {

@@ -2,6 +2,8 @@ function app() {
     return {
         activeTab: 'library',
         savedFiles: [],
+        isImporting: false,
+        importProgress: 0,
         activeGpx: null,
         activeGpxStats: {
             distance: null,
@@ -204,29 +206,51 @@ function app() {
             })).sort((a, b) => new Date(b.date) - new Date(a.date));
         },
 
+        async handleZipFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            await this.handleZipUpload(file);
+        },
+
         async handleZipUpload(file) {
-            const zip = await JSZip.loadAsync(file);
-            const tracks = [];
+            this.isImporting = true;
+            this.importProgress = 0;
 
-            const gpxFiles = Object.keys(zip.files).filter(name => name.toLowerCase().endsWith('.gpx') && !zip.files[name].dir);
+            try {
+                const zip = await JSZip.loadAsync(file);
+                const tracks = [];
 
-            for (const filename of gpxFiles) {
-                const gpxData = await zip.files[filename].async('string');
-                const metadata = this.parseGpxMetadata(gpxData);
-                if (metadata) {
-                    metadata.city = await this.fetchCityName(metadata.lat, metadata.lon);
+                const gpxFiles = Object.keys(zip.files).filter(name => name.toLowerCase().endsWith('.gpx') && !zip.files[name].dir);
+                const totalFiles = gpxFiles.length;
+
+                for (let i = 0; i < totalFiles; i++) {
+                    const filename = gpxFiles[i];
+                    const gpxData = await zip.files[filename].async('string');
+                    const metadata = this.parseGpxMetadata(gpxData);
+                    if (metadata) {
+                        metadata.city = await this.fetchCityName(metadata.lat, metadata.lon);
+                    }
+                    tracks.push({
+                        name: filename.split('/').pop(), // Use just the filename without path
+                        data: gpxData,
+                        metadata: metadata
+                    });
+
+                    this.importProgress = Math.round(((i + 1) / totalFiles) * 100);
                 }
-                tracks.push({
-                    name: filename.split('/').pop(), // Use just the filename without path
-                    data: gpxData,
-                    metadata: metadata
-                });
-            }
 
-            if (tracks.length > 0) {
-                await this.saveGpxBulk(tracks);
-                // Optionally show the first one
-                this.displayGpx({ filename: tracks[0].name, ...tracks[0].metadata });
+                if (tracks.length > 0) {
+                    await this.saveGpxBulk(tracks);
+                    this.displayGpx({ filename: tracks[0].name, ...tracks[0].metadata });
+                }
+            } catch (error) {
+                console.error('ZIP import failed:', error);
+                alert('Failed to import ZIP file.');
+            } finally {
+                setTimeout(() => {
+                    this.isImporting = false;
+                    this.importProgress = 0;
+                }, 500); // Keep progress bar visible for a moment
             }
         },
 
@@ -234,21 +258,17 @@ function app() {
             const file = e.target.files[0];
             if (!file) return;
 
-            if (file.name.toLowerCase().endsWith('.zip')) {
-                await this.handleZipUpload(file);
-            } else {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const gpxData = e.target.result;
-                    const metadata = this.parseGpxMetadata(gpxData);
-                    if (metadata) {
-                        metadata.city = await this.fetchCityName(metadata.lat, metadata.lon);
-                    }
-                    await this.saveGpx(file.name, gpxData, metadata);
-                    this.displayGpx({ filename: file.name, ...metadata });
-                };
-                reader.readAsText(file);
-            }
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const gpxData = e.target.result;
+                const metadata = this.parseGpxMetadata(gpxData);
+                if (metadata) {
+                    metadata.city = await this.fetchCityName(metadata.lat, metadata.lon);
+                }
+                await this.saveGpx(file.name, gpxData, metadata);
+                this.displayGpx({ filename: file.name, ...metadata });
+            };
+            reader.readAsText(file);
         },
 
         async saveGpx(name, data, metadata) {

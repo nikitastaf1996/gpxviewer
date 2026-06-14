@@ -96,24 +96,67 @@
         </div>
     </div>
     <div id="saved-list">
-        <template x-for="file in $store.app.savedFiles" :key="file.filename">
-            <div class="run-card" x-on:click="displayGpx(file)">
-                <div class="run-info">
-                    <div class="run-main-info" x-text="formatRunCard(file)"></div>
-                </div>
-                <button class="delete-btn" x-on:click.stop="deleteGpx(file.filename)">Delete</button>
+        <template x-for="group in $store.app.groupedFiles" :key="group.label">
+            <div>
+                <div class="month-header" x-text="group.label"></div>
+                <template x-for="file in group.files" :key="file.filename">
+                    <div class="run-card" x-on:click="displayGpx(file)">
+                        <div class="run-info">
+                            <div class="run-main-info" x-text="formatRunCard(file)"></div>
+                        </div>
+                        <button class="delete-btn" x-on:click.stop="deleteGpx(file.filename)">Delete</button>
+                    </div>
+                </template>
             </div>
         </template>
+        <div x-show="$store.app.savedFiles.length === 0" class="placeholder-ui">
+            <div class="fallback-content">
+                <span class="fallback-icon">📂</span>
+                <p>Your library is empty. Upload a GPX file to get started!</p>
+            </div>
+        </div>
     </div>
 </div>
 
-<div id="tab-trends" class="tab-content" x-show="$store.app.activeTab === 'trends'" :class="{ 'active': $store.app.activeTab === 'trends' }">
+<div id="tab-trends" class="tab-content" x-data="trends" x-show="$store.app.activeTab === 'trends'" :class="{ 'active': $store.app.activeTab === 'trends' }">
     <div class="tab-header">
         <h2>Trends</h2>
     </div>
-    <div class="placeholder-ui">
-        <span class="fallback-icon">📈</span>
-        <p>Trends dashboard coming soon...</p>
+
+    <div id="trends-empty" class="placeholder-ui" x-show="$store.app.savedFiles.length === 0">
+        <div class="fallback-content">
+            <span class="fallback-icon">📈</span>
+            <p>No data available. Upload your first GPX file in your Library to view your running trends!</p>
+            <button x-on:click="$store.app.showTab('library')" class="action-btn-primary">Go to Library</button>
+        </div>
+    </div>
+
+    <div id="trends-content" x-show="$store.app.savedFiles.length > 0">
+        <div class="lifetime-stats">
+            <div class="stat-card">
+                <span class="stat-label">Total Distance</span>
+                <span class="stat-value" x-text="($store.app.lifetimeStats.totalDistance).toFixed(2) + ' km'">0.00 km</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Total Time</span>
+                <span class="stat-value" x-text="formatLifetimeDuration($store.app.lifetimeStats.totalDuration)">0h 0m</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Runs</span>
+                <span class="stat-value" x-text="$store.app.lifetimeStats.runCount">0</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Avg Pace</span>
+                <span class="stat-value" x-text="window.gpxUtils.formatPace($store.app.lifetimeStats.avgPace)">0:00 /km</span>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h3>Monthly Volume</h3>
+            <div class="trends-chart-wrapper">
+                <canvas id="monthly-volume-chart"></canvas>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -178,6 +221,7 @@
 <script src="./js/store.js"></script>
 <script src="./js/components/analyze.js"></script>
 <script src="./js/components/library.js"></script>
+<script src="./js/components/trends.js"></script>
 <script src="./js/components/settings.js"></script>
 <script src="./js/main.js"></script>
 

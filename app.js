@@ -20,23 +20,155 @@ function app() {
         map: null,
         currentTrack: null,
         charts: {},
+        db: null,
 
-        init() {
-            this.map = L.map('map', {
-                fullscreenControl: true
-            }).setView([0, 0], 2);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(this.map);
+        async initDb() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('GpxViewerDB', 1);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('settings')) {
+                        db.createObjectStore('settings');
+                    }
+                    if (!db.objectStoreNames.contains('metadata')) {
+                        db.createObjectStore('metadata');
+                    }
+                    if (!db.objectStoreNames.contains('files')) {
+                        db.createObjectStore('files');
+                    }
+                };
+                request.onsuccess = (e) => {
+                    this.db = e.target.result;
+                    resolve(this.db);
+                };
+                request.onerror = (e) => reject(e.target.error);
+            });
+        },
 
-            // Make map globally accessible for plugins if needed
-            window.map = this.map;
+        async dbGet(store, key) {
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction([store], 'readonly');
+                const request = transaction.objectStore(store).get(key);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        },
 
-            this.loadSettings();
-            this.loadSavedMetadata();
+        async dbSet(store, key, value) {
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction([store], 'readwrite');
+                const request = transaction.objectStore(store).put(value, key);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        },
 
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW failed:', err));
+        async dbDelete(store, key) {
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction([store], 'readwrite');
+                const request = transaction.objectStore(store).delete(key);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        },
+
+        async dbGetAll(store) {
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction([store], 'readonly');
+                const objectStore = transaction.objectStore(store);
+                const request = objectStore.getAll();
+                const keysRequest = objectStore.getAllKeys();
+
+                let values = null;
+                let keys = null;
+
+                const checkComplete = () => {
+                    if (values !== null && keys !== null) {
+                        const results = {};
+                        values.forEach((val, i) => {
+                            results[keys[i]] = val;
+                        });
+                        resolve(results);
+                    }
+                };
+
+                request.onsuccess = () => {
+                    values = request.result;
+                    checkComplete();
+                };
+                keysRequest.onsuccess = () => {
+                    keys = keysRequest.result;
+                    checkComplete();
+                };
+                transaction.onerror = () => reject(transaction.error);
+            });
+        },
+
+        async migrateFromLocalStorage() {
+            const migrated = await this.dbGet('settings', 'migrated');
+            if (migrated) return;
+
+            console.log('Migrating data from localStorage to IndexedDB...');
+
+            const transaction = this.db.transaction(['settings', 'metadata', 'files'], 'readwrite');
+
+            // Migrate settings
+            const settings = localStorage.getItem('gpxViewerSettings');
+            if (settings) {
+                transaction.objectStore('settings').put(JSON.parse(settings), 'gpxViewerSettings');
+            }
+
+            // Migrate metadata
+            const metadata = localStorage.getItem('gpxMetadata');
+            if (metadata) {
+                const parsedMetadata = JSON.parse(metadata);
+                for (const key in parsedMetadata) {
+                    transaction.objectStore('metadata').put(parsedMetadata[key], key);
+                }
+            }
+
+            // Migrate files
+            const files = localStorage.getItem('gpxFiles');
+            if (files) {
+                const parsedFiles = JSON.parse(files);
+                for (const key in parsedFiles) {
+                    transaction.objectStore('files').put(parsedFiles[key], key);
+                }
+            }
+
+            transaction.objectStore('settings').put(true, 'migrated');
+
+            return new Promise((resolve, reject) => {
+                transaction.oncomplete = () => {
+                    console.log('Migration complete.');
+                    resolve();
+                };
+                transaction.onerror = () => reject(transaction.error);
+            });
+        },
+
+        async init() {
+            try {
+                this.map = L.map('map', {
+                    fullscreenControl: true
+                }).setView([0, 0], 2);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(this.map);
+
+                // Make map globally accessible for plugins if needed
+                window.map = this.map;
+
+                await this.initDb();
+                await this.migrateFromLocalStorage();
+                await this.loadSettings();
+                await this.loadSavedMetadata();
+
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW failed:', err));
+                }
+            } catch (error) {
+                console.error('Initialization failed:', error);
             }
         },
 
@@ -50,22 +182,22 @@ function app() {
             }
         },
 
-        loadSettings() {
-            const saved = localStorage.getItem('gpxViewerSettings');
+        async loadSettings() {
+            const saved = await this.dbGet('settings', 'gpxViewerSettings');
             if (saved) {
-                this.visibleCharts = JSON.parse(saved);
+                this.visibleCharts = saved;
             }
         },
 
-        saveSettings() {
-            localStorage.setItem('gpxViewerSettings', JSON.stringify(this.visibleCharts));
+        async saveSettings() {
+            await this.dbSet('settings', 'gpxViewerSettings', JSON.parse(JSON.stringify(this.visibleCharts)));
             setTimeout(() => {
                 Object.values(this.charts).forEach(chart => chart.resize());
             }, 0);
         },
 
-        loadSavedMetadata() {
-            const savedMeta = JSON.parse(localStorage.getItem('gpxMetadata') || '{}');
+        async loadSavedMetadata() {
+            const savedMeta = await this.dbGetAll('metadata');
             this.savedFiles = Object.keys(savedMeta).map(filename => ({
                 filename,
                 ...savedMeta[filename]
@@ -89,40 +221,30 @@ function app() {
             reader.readAsText(file);
         },
 
-        saveGpx(name, data, metadata) {
-            const savedFiles = JSON.parse(localStorage.getItem('gpxFiles') || '{}');
-            savedFiles[name] = data;
-            localStorage.setItem('gpxFiles', JSON.stringify(savedFiles));
+        async saveGpx(name, data, metadata) {
+            await this.dbSet('files', name, data);
 
             if (metadata) {
-                const savedMeta = JSON.parse(localStorage.getItem('gpxMetadata') || '{}');
-                savedMeta[name] = metadata;
-                localStorage.setItem('gpxMetadata', JSON.stringify(savedMeta));
+                await this.dbSet('metadata', name, metadata);
             }
-            this.loadSavedMetadata();
+            await this.loadSavedMetadata();
         },
 
-        deleteGpx(name) {
-            const savedFiles = JSON.parse(localStorage.getItem('gpxFiles') || '{}');
-            delete savedFiles[name];
-            localStorage.setItem('gpxFiles', JSON.stringify(savedFiles));
-
-            const savedMeta = JSON.parse(localStorage.getItem('gpxMetadata') || '{}');
-            delete savedMeta[name];
-            localStorage.setItem('gpxMetadata', JSON.stringify(savedMeta));
+        async deleteGpx(name) {
+            await this.dbDelete('files', name);
+            await this.dbDelete('metadata', name);
 
             if (this.activeGpx && this.activeGpx.filename === name) {
                 this.activeGpx = null;
             }
-            this.loadSavedMetadata();
+            await this.loadSavedMetadata();
         },
 
-        displayGpx(metadata) {
+        async displayGpx(metadata) {
             this.activeGpx = metadata;
             this.showTab('analyze');
 
-            const savedFiles = JSON.parse(localStorage.getItem('gpxFiles') || '{}');
-            const gpxData = savedFiles[metadata.filename];
+            const gpxData = await this.dbGet('files', metadata.filename);
 
             if (!gpxData) return;
 

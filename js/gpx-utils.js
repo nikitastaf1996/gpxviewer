@@ -60,13 +60,23 @@ window.gpxUtils = {
         };
     },
 
-    async fetchCityName(lat, lon) {
+    async fetchCityName(lat, lon, preferredEntity = 'city') {
         try {
             const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`);
             if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
             const address = data.address;
-            return address.city || address.town || address.village || address.suburb || address.county || '';
+            if (!address) return '';
+
+            // Try preferred first
+            if (address[preferredEntity]) return address[preferredEntity];
+
+            // Fallback sequence
+            const fallbacks = ['city', 'town', 'village', 'suburb', 'municipality', 'county', 'district', 'state'];
+            for (const key of fallbacks) {
+                if (address[key]) return address[key];
+            }
+            return '';
         } catch (error) {
             console.error('Reverse geocoding failed:', error);
             return '';

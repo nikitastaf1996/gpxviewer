@@ -214,6 +214,28 @@
             <label>Split Performance</label>
             <input type="checkbox" x-model="$store.app.visibleCharts.splits" x-on:change="$store.app.saveSettings()">
         </div>
+        <h3>Geocoding</h3>
+        <div class="setting-item">
+            <label>Entity to Display</label>
+            <select x-model="$store.app.geocodingEntity" x-on:change="$store.app.saveSettings()" class="settings-select">
+                <option value="city">City</option>
+                <option value="town">Town</option>
+                <option value="village">Village</option>
+                <option value="suburb">Suburb</option>
+                <option value="municipality">Municipality</option>
+                <option value="county">County</option>
+                <option value="district">District</option>
+                <option value="state">State</option>
+            </select>
+        </div>
+        <div class="setting-item">
+            <div style="width: 100%;">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                    Sync will re-process all runs using the selected entity. This may take some time.
+                </p>
+                <button x-on:click="syncGeocoding()" class="btn-secondary" style="width: 100%;">Sync Geocoding</button>
+            </div>
+        </div>
         <h3>Danger Zone</h3>
         <div class="setting-item">
             <button x-on:click="if(confirm('Are you sure you want to clear your entire library?')) clearLibrary()" class="delete-btn" style="width: 100%;">Clear Library</button>

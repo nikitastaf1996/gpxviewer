@@ -133,6 +133,48 @@ header h1 {
     background-color: var(--primary-dark);
 }
 
+.btn-secondary {
+    background-color: #fff;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    padding: 0.8rem 1.5rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary:hover {
+    background-color: var(--bg-light);
+}
+
+.btn-secondary:active {
+    transform: scale(0.98);
+}
+
+.delete-btn {
+    background-color: #fff;
+    color: #ff4d4d;
+    border: 1px solid #ffebeb;
+    padding: 0.8rem 1.5rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.delete-btn:hover {
+    background-color: #fff5f5;
+    border-color: #ff4d4d;
+}
+
+.delete-btn:active {
+    transform: scale(0.98);
+}
+
 /* Analyze Tab */
 #analyze-data {
     display: flex;
@@ -443,6 +485,22 @@ canvas {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--text-muted);
+}
+
+.settings-select {
+    padding: 0.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.settings-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
 }
 
 .trends-chart-wrapper {

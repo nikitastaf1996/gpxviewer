@@ -24,6 +24,7 @@ document.addEventListener('alpine:init', () => {
             climb: true,
             splits: true
         },
+        geocodingEntity: 'city',
 
         showTab(tabId) {
             this.activeTab = tabId;
@@ -34,12 +35,23 @@ document.addEventListener('alpine:init', () => {
         async loadSettings() {
             const saved = await window.dbManager.get('settings', 'gpxViewerSettings');
             if (saved) {
-                this.visibleCharts = saved;
+                if (saved.visibleCharts) {
+                    // New format
+                    this.visibleCharts = saved.visibleCharts;
+                    this.geocodingEntity = saved.geocodingEntity || 'city';
+                } else {
+                    // Legacy format
+                    this.visibleCharts = saved;
+                }
             }
         },
 
         async saveSettings() {
-            await window.dbManager.set('settings', 'gpxViewerSettings', JSON.parse(JSON.stringify(this.visibleCharts)));
+            const settings = {
+                visibleCharts: JSON.parse(JSON.stringify(this.visibleCharts)),
+                geocodingEntity: this.geocodingEntity
+            };
+            await window.dbManager.set('settings', 'gpxViewerSettings', settings);
             window.dispatchEvent(new CustomEvent('settings-updated'));
         },
 

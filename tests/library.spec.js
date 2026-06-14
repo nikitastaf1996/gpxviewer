@@ -42,7 +42,8 @@ test.describe('Library Tab', () => {
     await page.click('#bottom-nav button:has-text("Library")');
     await expect(page.locator('.run-card')).toBeVisible();
     await expect(page.locator('.run-card')).toContainText('29 Aug');
-    await expect(page.locator('.run-card')).toContainText('Test City');
+    // Geocoding is now background process, wait a bit for it to finish
+    await expect(page.locator('.run-card')).toContainText('Test City', { timeout: 10000 });
   });
 
   test('should upload a ZIP archive', async ({ page }) => {

@@ -5,6 +5,7 @@ const ASSETS = [
   './styles.css',
   './js/db.js',
   './js/gpx-utils.js',
+  './js/geocoder.js',
   './js/store.js',
   './js/components/analyze.js',
   './js/components/library.js',

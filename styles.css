@@ -26,6 +26,7 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    height: 100dvh;
     background-color: var(--bg-light);
     color: var(--text-main);
     overflow: hidden;
@@ -39,6 +40,7 @@ header {
     text-align: center;
     border-bottom: 1px solid var(--border-color);
     z-index: 10;
+    flex-shrink: 0;
 }
 
 header h1 {
@@ -55,7 +57,7 @@ header h1 {
     flex-direction: column;
     flex-grow: 1;
     overflow-y: auto;
-    padding-bottom: calc(var(--nav-height) + 1rem);
+    padding-bottom: calc(var(--nav-height) + 2rem);
 }
 
 .tab-content.active {
@@ -354,21 +356,28 @@ canvas {
 
 .run-info {
     flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.run-name-prominent {
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: var(--text-main);
+    letter-spacing: -0.02em;
 }
 
 .run-main-info {
-    font-weight: 800;
-    font-size: 1.1rem;
-    margin-bottom: 2px;
+    font-weight: 700;
+    font-size: 0.95rem;
     color: var(--text-main);
-    letter-spacing: -0.02em;
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.5rem;
 }
 
 .run-city {
-    font-size: 0.85rem;
     font-weight: 600;
     color: var(--text-muted);
     letter-spacing: 0;
@@ -546,7 +555,7 @@ canvas {
     position: fixed;
     bottom: 0;
     left: 0;
-    width: 100%;
+    right: 0;
     height: var(--nav-height);
     background-color: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
@@ -554,8 +563,16 @@ canvas {
     justify-content: space-around;
     align-items: center;
     border-top: 1px solid var(--border-color);
-    z-index: 2000;
+    z-index: 1000;
     padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tab-content {
+    display: none;
+    flex-direction: column;
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-bottom: calc(var(--nav-height) + 1.5rem);
 }
 
 .nav-item {

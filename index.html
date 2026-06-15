@@ -31,6 +31,9 @@
     </div>
 
     <div id="analyze-data" x-show="$store.app.activeGpx" style="display: none;" :style="$store.app.activeGpx ? 'display: flex' : 'display: none'">
+        <div class="analyze-header" style="padding: 1rem 1rem 0;">
+            <input type="text" x-model="$store.app.activeGpxStats.customName" @change="updateRunName($event.target.value)" placeholder="Name your run..." class="settings-select" style="width: 100%; font-size: 1.25rem; font-weight: 800; border: none; padding: 0.5rem 0; background: transparent;">
+        </div>
         <div id="stats">
             <div class="stat-item">
                 <span class="stat-label">Distance</span>
@@ -39,6 +42,10 @@
             <div class="stat-item">
                 <span class="stat-label">Total Time</span>
                 <span class="stat-value" x-text="$store.app.activeGpxStats.duration || '-'">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Start Time</span>
+                <span class="stat-value" x-text="$store.app.activeGpxStats.startTime || '-'">-</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Pace</span>
@@ -51,6 +58,10 @@
             <div class="stat-item">
                 <span class="stat-label">Elevation Loss</span>
                 <span class="stat-value" x-text="$store.app.activeGpxStats.elevationLoss || '-'">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Calories</span>
+                <span class="stat-value" x-text="$store.app.activeGpxStats.calories || '-'">-</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Location</span>
@@ -119,8 +130,10 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 8-4 4 4 4"/><path d="M6 12h8"/><rect width="20" height="16" x="2" y="4" rx="2"/></svg>
                             </div>
                             <div class="run-info">
+                                <div class="run-name-prominent" x-show="file.customName" x-text="file.customName"></div>
                                 <div class="run-main-info">
                                     <span x-text="file.distance.toFixed(2) + ' km'"></span>
+                                    <span class="dot-separator">•</span>
                                     <span class="run-city" x-text="file.city"></span>
                                 </div>
                                 <div class="run-meta-info">
@@ -180,6 +193,10 @@
             <div class="stat-card">
                 <span class="stat-label">Avg Pace</span>
                 <span class="stat-value" x-text="window.gpxUtils.formatPace($store.app.lifetimeStats.avgPace)">0:00 /km</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Total Calories</span>
+                <span class="stat-value" x-text="$store.app.lifetimeStats.totalCalories">0</span>
             </div>
         </div>
 
@@ -251,6 +268,11 @@
                 </p>
                 <button x-on:click="syncGeocoding()" class="btn-secondary" style="width: 100%;">Sync Geocoding</button>
             </div>
+        </div>
+        <h3>Calculation Settings</h3>
+        <div class="setting-item">
+            <label>Weight (kg)</label>
+            <input type="number" x-model="$store.app.userWeight" x-on:change="$store.app.saveSettings()" class="settings-select" style="width: 80px;">
         </div>
         <h3>Danger Zone</h3>
         <div class="setting-item">

@@ -63,7 +63,7 @@ test.describe('Trends Tab', () => {
      await expect(page.locator('.stat-card:has-text("Runs") .stat-value')).toContainText('2');
   });
 
-  test('should display the monthly volume chart', async ({ page }) => {
+  test('should display the global trends chart', async ({ page }) => {
     await page.click('#bottom-nav button:has-text("Library")');
     const fileChooserPromise = page.waitForEvent('filechooser');
     await page.locator('label[title="Add GPX File"]').click();
@@ -71,6 +71,24 @@ test.describe('Trends Tab', () => {
     await fileChooser.setFiles(path.join(__dirname, '../samples/RK_gpx _2025-08-29_0734.gpx'));
 
     await page.click('#bottom-nav button:has-text("Trends")');
-    await expect(page.locator('#monthly-volume-chart')).toBeVisible();
+    await expect(page.locator('#global-trends-chart')).toBeVisible();
+  });
+
+  test('should display monthly breakdown charts when expanded', async ({ page }) => {
+    await page.click('#bottom-nav button:has-text("Library")');
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await page.locator('label[title="Add GPX File"]').click();
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles(path.join(__dirname, '../samples/RK_gpx _2025-08-29_0734.gpx'));
+
+    await page.click('#bottom-nav button:has-text("Trends")');
+
+    // Find a month group and expand it
+    const monthHeader = page.locator('.monthly-breakdowns-list .month-header').first();
+    await monthHeader.click();
+
+    // Check if the chart inside becomes visible
+    const monthChart = page.locator('.monthly-breakdowns-list canvas').first();
+    await expect(monthChart).toBeVisible();
   });
 });

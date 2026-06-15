@@ -550,6 +550,60 @@ canvas {
     box-shadow: var(--shadow-sm);
 }
 
+.section-header-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.section-header-controls h3 {
+    margin: 0 !important;
+}
+
+.chart-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.control-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    transition: all 0.2s;
+}
+
+.control-btn:active {
+    transform: scale(0.9);
+    background: var(--bg-light);
+}
+
+.control-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.month-summary-tag {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    background: var(--bg-light);
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
 /* Bottom Nav */
 #bottom-nav {
     position: fixed;

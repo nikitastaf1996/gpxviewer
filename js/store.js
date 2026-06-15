@@ -110,10 +110,28 @@ document.addEventListener('alpine:init', () => {
                 const year = d.getFullYear();
                 const key = `${month} ${year}`;
                 if (!groups[key]) {
-                    groups[key] = { label: key, files: [], totalDistance: 0 };
+                    groups[key] = {
+                        label: key,
+                        files: [],
+                        totalDistance: 0,
+                        totalDuration: 0,
+                        totalCalories: 0,
+                        runCount: 0,
+                        avgPace: 0
+                    };
                 }
                 groups[key].files.push(f);
                 groups[key].totalDistance += f.distance || 0;
+                groups[key].totalDuration += f.duration || 0;
+                groups[key].totalCalories += (f.distance || 0) * (this.userWeight || 70) * 1.036;
+                groups[key].runCount++;
+            });
+
+            // Calculate averages for groups
+            Object.values(groups).forEach(g => {
+                g.avgPace = g.totalDistance > 0 ? (g.totalDuration / 1000 / 60) / g.totalDistance : 0;
+                g.totalCalories = Math.round(g.totalCalories);
+                // We keep files in the group sorted newest to oldest because savedFiles is already sorted
             });
 
             const groupList = Object.values(groups);

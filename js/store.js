@@ -9,13 +9,17 @@ document.addEventListener('alpine:init', () => {
             pace: null,
             elevationGain: null,
             elevationLoss: null,
-            location: null
+            location: null,
+            startTime: null,
+            calories: null,
+            customName: null
         },
         lifetimeStats: {
             totalDistance: 0,
             totalDuration: 0,
             runCount: 0,
-            avgPace: 0
+            avgPace: 0,
+            totalCalories: 0
         },
         groupedFiles: [],
         topLocations: [],
@@ -27,6 +31,7 @@ document.addEventListener('alpine:init', () => {
             splits: true
         },
         geocodingEntity: 'city',
+        userWeight: 70,
 
         showTab(tabId) {
             this.activeTab = tabId;
@@ -41,6 +46,7 @@ document.addEventListener('alpine:init', () => {
                     // New format
                     this.visibleCharts = saved.visibleCharts;
                     this.geocodingEntity = saved.geocodingEntity || 'city';
+                    this.userWeight = saved.userWeight || 70;
                 } else {
                     // Legacy format
                     this.visibleCharts = saved;
@@ -51,9 +57,14 @@ document.addEventListener('alpine:init', () => {
         async saveSettings() {
             const settings = {
                 visibleCharts: JSON.parse(JSON.stringify(this.visibleCharts)),
-                geocodingEntity: this.geocodingEntity
+                geocodingEntity: this.geocodingEntity,
+                userWeight: this.userWeight
             };
             await window.dbManager.set('settings', 'gpxViewerSettings', settings);
+
+            // Recalculate lifetime stats (like total calories) if weight changed
+            await this.loadSavedMetadata();
+
             window.dispatchEvent(new CustomEvent('settings-updated'));
         },
 
@@ -67,14 +78,17 @@ document.addEventListener('alpine:init', () => {
             // Calculate lifetime stats
             let totalDist = 0;
             let totalDur = 0;
+            let totalCals = 0;
             this.savedFiles.forEach(f => {
                 totalDist += f.distance || 0;
                 totalDur += f.duration || 0;
+                totalCals += (f.distance || 0) * (this.userWeight || 70) * 1.036;
             });
             this.lifetimeStats.totalDistance = totalDist;
             this.lifetimeStats.totalDuration = totalDur;
             this.lifetimeStats.runCount = this.savedFiles.length;
             this.lifetimeStats.avgPace = totalDist > 0 ? (totalDur / 1000 / 60) / totalDist : 0;
+            this.lifetimeStats.totalCalories = Math.round(totalCals);
 
             // Calculate top 3 locations
             const locationCounts = {};

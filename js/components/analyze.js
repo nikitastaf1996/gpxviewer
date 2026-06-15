@@ -31,6 +31,13 @@ document.addEventListener('alpine:init', () => {
             window.addEventListener('settings-updated', () => {
                 setTimeout(() => {
                     Object.values(this.charts).forEach(chart => chart.resize());
+
+                    // Recalculate calories for active run if weight changed
+                    if (Alpine.store('app').activeGpxStats.distance) {
+                        const distKm = parseFloat(Alpine.store('app').activeGpxStats.distance);
+                        const weight = Alpine.store('app').userWeight || 70;
+                        Alpine.store('app').activeGpxStats.calories = Math.round(distKm * weight * 1.036);
+                    }
                 }, 0);
             });
 
@@ -48,6 +55,7 @@ document.addEventListener('alpine:init', () => {
             }
 
             Alpine.store('app').activeGpxStats.location = metadata.city || '-';
+            Alpine.store('app').activeGpxStats.customName = metadata.customName || '';
 
             this.currentTrack = new L.GPX(gpxData, {
                 async: true,
@@ -58,11 +66,15 @@ document.addEventListener('alpine:init', () => {
                 }
             }).on('loaded', (e) => {
                 const gpx = e.target;
+                this.map.invalidateSize();
                 this.map.fitBounds(gpx.getBounds());
 
                 const distKm = gpx.get_distance() / 1000;
+                const weight = Alpine.store('app').userWeight || 70;
                 Alpine.store('app').activeGpxStats.distance = distKm.toFixed(2) + " km";
                 Alpine.store('app').activeGpxStats.duration = window.gpxUtils.formatDuration(gpx.get_total_time());
+                Alpine.store('app').activeGpxStats.startTime = new Date(metadata.date).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                Alpine.store('app').activeGpxStats.calories = Math.round(distKm * weight * 1.036);
 
                 if (distKm > 0) {
                     const paceMinPerKm = (gpx.get_total_time() / 1000 / 60) / distKm;
@@ -78,6 +90,20 @@ document.addEventListener('alpine:init', () => {
                 const processedData = window.gpxUtils.calculateMetrics(points);
                 this.generateCharts(processedData, points);
             }).addTo(this.map);
+        },
+
+        async updateRunName(newName) {
+            const activeGpx = Alpine.store('app').activeGpx;
+            if (!activeGpx) return;
+
+            const metadata = await window.dbManager.get('metadata', activeGpx.filename);
+            if (metadata) {
+                metadata.customName = newName;
+                await window.dbManager.set('metadata', activeGpx.filename, metadata);
+                activeGpx.customName = newName;
+                Alpine.store('app').activeGpxStats.customName = newName;
+                await Alpine.store('app').loadSavedMetadata();
+            }
         },
 
         generateCharts(data, points) {

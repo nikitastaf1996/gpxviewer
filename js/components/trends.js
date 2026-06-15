@@ -61,14 +61,9 @@ document.addEventListener('alpine:init', () => {
 
         refreshAll() {
             this.updateGlobalChart();
-            // Monthly charts are refreshed individually when expanded, but if already expanded we might want to refresh them
-            // For now, let's just clear the monthlyCharts map so they get recreated on next toggle or if we trigger it
+            // Clear monthly charts tracking
             Object.values(this.monthlyCharts).forEach(c => c.destroy());
             this.monthlyCharts = {};
-
-            // To ensure UI reflects current data for expanded ones:
-            // We can't easily find which are expanded from here without keeping track in the component.
-            // Let's assume user will toggle or we can just let it be.
         },
 
         nextGlobalChart() {
@@ -108,11 +103,13 @@ document.addEventListener('alpine:init', () => {
             const canvas = document.getElementById('global-trends-chart');
             if (!canvas) return;
 
-            const ctx = canvas.getContext('2d');
-            if (this.globalChart) {
-                this.globalChart.destroy();
+            // Ensure old chart is destroyed before creating new one
+            const existingChart = Chart.getChart(canvas);
+            if (existingChart) {
+                existingChart.destroy();
             }
 
+            const ctx = canvas.getContext('2d');
             const type = this.globalChartTypes[this.globalChartIndex];
 
             const data = groups.map(g => {
@@ -178,11 +175,13 @@ document.addEventListener('alpine:init', () => {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return;
 
-            const ctx = canvas.getContext('2d');
-            if (this.monthlyCharts[group.label]) {
-                this.monthlyCharts[group.label].destroy();
+            // Ensure old chart is destroyed before creating new one
+            const existingChart = Chart.getChart(canvas);
+            if (existingChart) {
+                existingChart.destroy();
             }
 
+            const ctx = canvas.getContext('2d');
             const type = this.monthlyChartTypes[this.monthlyChartIndex];
             const files = [...group.files].reverse(); // Oldest to newest in month
 

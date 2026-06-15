@@ -216,8 +216,12 @@
             <div class="section-header-controls">
                 <h3 x-text="globalChartTitle">Global Trends</h3>
                 <div class="chart-controls">
-                    <button @click="prevGlobalChart()" class="control-btn" title="Previous Chart">−</button>
-                    <button @click="nextGlobalChart()" class="control-btn" title="Next Chart">+</button>
+                    <button @click="prevGlobalChart()" class="control-btn" title="Previous Chart">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button @click="nextGlobalChart()" class="control-btn" title="Next Chart">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
                 </div>
             </div>
             <div class="trends-chart-wrapper">
@@ -230,8 +234,12 @@
                 <h3>Monthly Breakdowns</h3>
                 <div class="chart-controls">
                     <span class="control-label" x-text="monthlyChartTitle"></span>
-                    <button @click="prevMonthlyChart()" class="control-btn" title="Previous Type">−</button>
-                    <button @click="nextMonthlyChart()" class="control-btn" title="Next Type">+</button>
+                    <button @click="prevMonthlyChart()" class="control-btn" title="Previous Type">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button @click="nextMonthlyChart()" class="control-btn" title="Next Type">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
                 </div>
             </div>
             <div class="monthly-breakdowns-list">

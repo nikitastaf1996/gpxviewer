@@ -356,21 +356,28 @@ canvas {
 
 .run-info {
     flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.run-name-prominent {
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: var(--text-main);
+    letter-spacing: -0.02em;
 }
 
 .run-main-info {
-    font-weight: 800;
-    font-size: 1.1rem;
-    margin-bottom: 2px;
+    font-weight: 700;
+    font-size: 0.95rem;
     color: var(--text-main);
-    letter-spacing: -0.02em;
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.5rem;
 }
 
 .run-city {
-    font-size: 0.85rem;
     font-weight: 600;
     color: var(--text-muted);
     letter-spacing: 0;

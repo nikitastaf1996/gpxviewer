@@ -130,9 +130,11 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 8-4 4 4 4"/><path d="M6 12h8"/><rect width="20" height="16" x="2" y="4" rx="2"/></svg>
                             </div>
                             <div class="run-info">
+                                <div class="run-name-prominent" x-show="file.customName" x-text="file.customName"></div>
                                 <div class="run-main-info">
                                     <span x-text="file.distance.toFixed(2) + ' km'"></span>
-                                    <span class="run-city" x-text="file.customName || file.city"></span>
+                                    <span class="dot-separator">•</span>
+                                    <span class="run-city" x-text="file.city"></span>
                                 </div>
                                 <div class="run-meta-info">
                                     <span x-text="new Date(file.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })"></span>

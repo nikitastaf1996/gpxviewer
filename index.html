@@ -213,9 +213,44 @@
         </div>
 
         <div class="chart-section">
-            <h3>Monthly Volume</h3>
+            <div class="section-header-controls">
+                <h3 x-text="globalChartTitle">Global Trends</h3>
+                <div class="chart-controls">
+                    <button @click="prevGlobalChart()" class="control-btn" title="Previous Chart">−</button>
+                    <button @click="nextGlobalChart()" class="control-btn" title="Next Chart">+</button>
+                </div>
+            </div>
             <div class="trends-chart-wrapper">
-                <canvas id="monthly-volume-chart"></canvas>
+                <canvas id="global-trends-chart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <div class="section-header-controls">
+                <h3>Monthly Breakdowns</h3>
+                <div class="chart-controls">
+                    <span class="control-label" x-text="monthlyChartTitle"></span>
+                    <button @click="prevMonthlyChart()" class="control-btn" title="Previous Type">−</button>
+                    <button @click="nextMonthlyChart()" class="control-btn" title="Next Type">+</button>
+                </div>
+            </div>
+            <div class="monthly-breakdowns-list">
+                <template x-for="group in $store.app.groupedFiles" :key="group.label">
+                    <div x-data="{ expanded: false }" class="month-group">
+                        <div class="month-header" x-on:click="expanded = !expanded; if(expanded) $nextTick(() => updateMonthlyChart(group))">
+                            <span x-text="group.label"></span>
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <span class="month-summary-tag" x-text="group.totalDistance.toFixed(1) + ' km'"></span>
+                                <span class="toggle-icon" x-text="expanded ? '−' : '+'"></span>
+                            </div>
+                        </div>
+                        <div x-show="expanded" x-collapse>
+                            <div class="trends-chart-wrapper" style="height: 220px; margin-top: 0.5rem; background: var(--bg-light);">
+                                <canvas :id="'chart-' + group.label.replace(' ', '-')"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
         </div>
     </div>

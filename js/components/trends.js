@@ -61,9 +61,7 @@ document.addEventListener('alpine:init', () => {
 
         refreshAll() {
             this.updateGlobalChart();
-            // Clear monthly charts tracking
-            Object.values(this.monthlyCharts).forEach(c => c.destroy());
-            this.monthlyCharts = {};
+            this.refreshMonthlyCharts();
         },
 
         nextGlobalChart() {
@@ -89,7 +87,8 @@ document.addEventListener('alpine:init', () => {
         refreshMonthlyCharts() {
             // Re-render all currently existing monthly charts
             Alpine.store('app').groupedFiles.forEach(group => {
-                const canvas = document.getElementById('chart-' + group.label.replace(' ', '-'));
+                const canvasId = 'chart-' + group.label.replace(' ', '-');
+                const canvas = document.getElementById(canvasId);
                 if (canvas) {
                     this.updateMonthlyChart(group);
                 }
@@ -231,6 +230,21 @@ document.addEventListener('alpine:init', () => {
                     }
                 }
             });
+        },
+
+        getMonthlySummaryText(group) {
+            const type = this.monthlyChartTypes[this.monthlyChartIndex];
+            switch(type.id) {
+                case 'distance': return group.totalDistance.toFixed(1) + ' km';
+                case 'duration':
+                    const mins = group.totalDuration / (1000 * 60);
+                    const h = Math.floor(mins / 60);
+                    const m = Math.round(mins % 60);
+                    return (h > 0 ? h + 'h ' : '') + m + 'm';
+                case 'pace': return window.gpxUtils.formatPace(group.avgPace);
+                case 'calories': return group.totalCalories + ' kcal';
+                default: return '';
+            }
         },
 
         formatLifetimeDuration(ms) {

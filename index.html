@@ -248,7 +248,7 @@
                         <div class="month-header" x-on:click="expanded = !expanded; if(expanded) $nextTick(() => updateMonthlyChart(group))">
                             <span x-text="group.label"></span>
                             <div style="display: flex; align-items: center; gap: 1rem;">
-                                <span class="month-summary-tag" x-text="group.totalDistance.toFixed(1) + ' km'"></span>
+                                <span class="month-summary-tag" x-text="getMonthlySummaryText(group)"></span>
                                 <span class="toggle-icon" x-text="expanded ? '−' : '+'"></span>
                             </div>
                         </div>

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimized Liquid Aura</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            background-color: #030106;
+            overflow: hidden;
+        }
+
+        /* Container for all visual layers */
+        .aura-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Base blotch settings utilizing GPU composite rendering */
+        .blotch {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate3d(-50%, -50%, 0);
+            mix-blend-mode: screen;
+            will-change: transform, border-radius;
+        }
+
+        /* --- UNFILTERED BACKGROUNDS (Highly diffuse, low performance cost) --- */
+        .diffuse-pink {
+            width: 95vw;
+            height: 95vw;
+            max-width: 800px;
+            max-height: 800px;
+            background: #e6007a;
+            filter: blur(150px);
+            opacity: 0.6;
+            animation: morph-alt 26s infinite ease-in-out;
+        }
+
+        .diffuse-orange {
+            width: 85vw;
+            height: 85vw;
+            max-width: 700px;
+            max-height: 700px;
+            background: #ff5500;
+            filter: blur(130px);
+            opacity: 0.5;
+            animation: morph-main 30s infinite ease-in-out;
+        }
+
+        /* --- FILTERED FOREGROUNDS (Localized distortion, low performance cost) --- */
+        .distorted-foreground {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            filter: url(#optimized-liquid-warp);
+            will-change: transform;
+        }
+
+        /* Defined, sharper warm shapes */
+        .edged-yellow {
+            width: 50vw;
+            height: 50vw;
+            max-width: 400px;
+            max-height: 400px;
+            background: #ffe600;
+            filter: blur(30px);
+            opacity: 0.85;
+            animation: morph-main 20s infinite ease-in-out;
+        }
+
+        .edged-pink {
+            width: 45vw;
+            height: 45vw;
+            max-width: 350px;
+            max-height: 350px;
+            background: #e6007a;
+            filter: blur(35px);
+            opacity: 0.8;
+            animation: morph-alt 22s infinite ease-in-out;
+        }
+
+        /* Opposite colored cooler shapes */
+        .edged-cyan {
+            width: 48vw;
+            height: 48vw;
+            max-width: 380px;
+            max-height: 380px;
+            background: #00f5d4; /* Vibrant complementary cyan */
+            filter: blur(38px);
+            opacity: 0.75;
+            animation: morph-alt 24s infinite ease-in-out;
+        }
+
+        .edged-blue {
+            width: 42vw;
+            height: 42vw;
+            max-width: 330px;
+            max-height: 330px;
+            background: #0055ff; /* Vibrant complementary cobalt blue */
+            filter: blur(40px);
+            opacity: 0.7;
+            animation: morph-main 18s infinite ease-in-out;
+        }
+
+        /* Morphing keyframes to animate organic shape profiles */
+        @keyframes morph-main {
+            0% {
+                border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
+            }
+            50% {
+                border-radius: 65% 35% 50% 50% / 55% 45% 55% 45%;
+            }
+            100% {
+                border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
+            }
+        }
+
+        @keyframes morph-alt {
+            0% {
+                border-radius: 50% 50% 40% 60% / 50% 40% 60% 50%;
+            }
+            50% {
+                border-radius: 40% 60% 60% 40% / 60% 45% 55% 40%;
+            }
+            100% {
+                border-radius: 50% 50% 40% 60% / 50% 40% 60% 50%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Optimized SVG Filter: Reduced numOctaves down to 1 to minimize pixel recalculations -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+        <defs>
+            <filter id="optimized-liquid-warp">
+                <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="1" result="noise" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="45" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+        </defs>
+    </svg>
+
+    <div class="aura-container">
+        <!-- Background layers (not passed through SVG filter for speed) -->
+        <div class="blotch diffuse-pink" id="b-diffuse-pink"></div>
+        <div class="blotch diffuse-orange" id="b-diffuse-orange"></div>
+
+        <!-- Foreground layers (passed through optimized SVG filter) -->
+        <div class="distorted-foreground">
+            <div class="blotch edged-pink" id="b-edged-pink"></div>
+            <div class="blotch edged-cyan" id="b-edged-cyan"></div>
+            <div class="blotch edged-blue" id="b-edged-blue"></div>
+            <div class="blotch edged-yellow" id="b-edged-yellow"></div>
+        </div>
+    </div>
+
+    <script>
+        // Blotch movement arrays
+        // Position drift offsets are calculated in viewport units (vw, vh)
+        const blotches = [
+            { id: 'b-diffuse-pink',   x: -12, y: -10, rx: 14, ry: 10, speedX: 0.0006, speedY: 0.0004, phase: 0 },
+            { id: 'b-diffuse-orange', x: 12,  y: 10,  rx: 12, ry: 12, speedX: -0.0004, speedY: 0.0006, phase: 1.5 },
+            { id: 'b-edged-pink',     x: -15, y: -5,  rx: 15, ry: 12, speedX: -0.0008, speedY: 0.0005, phase: 3.1 },
+            { id: 'b-edged-cyan',     x: 10,  y: -15, rx: 14, ry: 15, speedX: 0.0007, speedY: -0.0006, phase: 4.8 },
+            { id: 'b-edged-blue',     x: -8,  y: 12,  rx: 12, ry: 14, speedX: -0.0005, speedY: -0.0007, phase: 0.8 },
+            { id: 'b-edged-yellow',   x: 0,   y: 0,   rx: 8,  ry: 8,  speedX: 0.0010, speedY: -0.0008, phase: 2.2 }
+        ];
+
+        function animate() {
+            const time = performance.now();
+
+            for (let i = 0; i < blotches.length; i++) {
+                const b = blotches[i];
+                const el = document.getElementById(b.id);
+                if (el) {
+                    // Update positions purely using hardware-accelerated translate3D
+                    const dx = b.x + Math.sin(time * b.speedX + b.phase) * b.rx;
+                    const dy = b.y + Math.cos(time * b.speedY + b.phase) * b.ry;
+                    
+                    el.style.transform = `translate3d(calc(-50% + ${dx}vw), calc(-50% + ${dy}vh), 0)`;
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize GPU-bound render loop
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>

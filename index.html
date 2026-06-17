@@ -177,7 +177,8 @@
     </div>
 
     <div id="trends-content" x-show="$store.app.savedFiles.length > 0">
-        <div class="aura-container">
+        <!-- New View with Liquid Aura -->
+        <div class="aura-container" x-show="$store.app.showLiquidAura">
             <video autoplay loop muted playsinline class="aura-video aura-video-400x400">
                 <source src="assets/videos/aura_400x400.mp4" type="video/mp4">
             </video>
@@ -216,17 +217,55 @@
                     <span class="stat-value" x-text="$store.app.lifetimeStats.totalCalories">0</span>
                 </div>
             </div>
+
+            <div class="chart-section" x-show="$store.app.topLocations.length > 0" style="padding-top: 0;">
+                <h3 style="color: rgba(255,255,255,0.7);">Popular Locations</h3>
+                <div class="top-locations-list">
+                    <template x-for="loc in $store.app.topLocations" :key="loc.name">
+                        <div class="location-chip">
+                            <span class="location-name" x-text="loc.name"></span>
+                            <span class="location-count" x-text="loc.count + ' runs'"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
         </div>
 
-        <div class="chart-section" x-show="$store.app.topLocations.length > 0">
-            <h3>Popular Locations</h3>
-            <div class="top-locations-list">
-                <template x-for="loc in $store.app.topLocations" :key="loc.name">
-                    <div class="location-chip">
-                        <span class="location-name" x-text="loc.name"></span>
-                        <span class="location-count" x-text="loc.count + ' runs'"></span>
-                    </div>
-                </template>
+        <!-- Old View (Fallback) -->
+        <div x-show="!$store.app.showLiquidAura">
+            <div class="lifetime-stats">
+                <div class="stat-card">
+                    <span class="stat-label">Total Distance</span>
+                    <span class="stat-value" x-text="($store.app.lifetimeStats.totalDistance).toFixed(2) + ' km'">0.00 km</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Total Time</span>
+                    <span class="stat-value" x-text="formatLifetimeDuration($store.app.lifetimeStats.totalDuration)">0h 0m</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Runs</span>
+                    <span class="stat-value" x-text="$store.app.lifetimeStats.runCount">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Avg Pace</span>
+                    <span class="stat-value" x-text="window.gpxUtils.formatPace($store.app.lifetimeStats.avgPace)">0:00 /km</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Total Calories</span>
+                    <span class="stat-value" x-text="$store.app.lifetimeStats.totalCalories">0</span>
+                </div>
+            </div>
+
+            <div class="chart-section" x-show="$store.app.topLocations.length > 0">
+                <h3>Popular Locations</h3>
+                <div class="top-locations-list">
+                    <template x-for="loc in $store.app.topLocations" :key="loc.name">
+                        <div class="location-chip">
+                            <span class="location-name" x-text="loc.name"></span>
+                            <span class="location-count" x-text="loc.count + ' runs'"></span>
+                        </div>
+                    </template>
+                </div>
             </div>
         </div>
 
@@ -307,6 +346,11 @@
         <div class="setting-item">
             <label>Split Performance</label>
             <input type="checkbox" x-model="$store.app.visibleCharts.splits" x-on:change="$store.app.saveSettings()">
+        </div>
+        <h3>Visuals</h3>
+        <div class="setting-item">
+            <label>Liquid Aura Background</label>
+            <input type="checkbox" x-model="$store.app.showLiquidAura" x-on:change="$store.app.saveSettings()">
         </div>
         <h3>Geocoding</h3>
         <div class="setting-item">

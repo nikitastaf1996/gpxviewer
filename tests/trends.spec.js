@@ -36,9 +36,9 @@ test.describe('Trends Tab', () => {
 
     await page.click('#bottom-nav button:has-text("Trends")');
     await expect(page.locator('#trends-content')).toBeVisible();
-    await expect(page.locator('.stat-card:has-text("Runs") .stat-value')).toContainText('1');
+    await expect(page.locator('.stat-card:has-text("Runs") .stat-value').first()).toContainText('1');
 
-    const distanceText = await page.locator('.stat-card:has-text("Total Distance") .stat-value').textContent();
+    const distanceText = await page.locator('.stat-card:has-text("Total Distance") .stat-value').first().textContent();
     const distanceValue = parseFloat(distanceText);
     expect(distanceValue).toBeGreaterThan(0);
   });
@@ -60,7 +60,7 @@ test.describe('Trends Tab', () => {
      }
 
      await page.click('#bottom-nav button:has-text("Trends")');
-     await expect(page.locator('.stat-card:has-text("Runs") .stat-value')).toContainText('2');
+     await expect(page.locator('.stat-card:has-text("Runs") .stat-value').first()).toContainText('2');
   });
 
   test('should display the global trends chart', async ({ page }) => {

@@ -61,6 +61,18 @@ document.addEventListener('alpine:init', () => {
                 setTimeout(() => this.refreshAll(), 200);
                 this.playAuraVideo();
             }
+
+            this.$watch('$store.app.showLiquidAura', (val) => {
+                if (Alpine.store('app').activeTab === 'trends') {
+                    if (val) {
+                        this.playAuraVideo();
+                    } else {
+                        this.pauseAuraVideo();
+                    }
+                    // Refresh charts as the layout change might affect sizing
+                    setTimeout(() => this.refreshAll(), 100);
+                }
+            });
         },
 
         playAuraVideo() {

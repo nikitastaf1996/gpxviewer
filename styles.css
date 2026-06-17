@@ -740,7 +740,7 @@ canvas {
 }
 
 /* Glassy Stat Cards inside Aura Container */
-.aura-container .stat-card {
+.aura-container .stat-card, .aura-container .location-chip {
     background: rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -748,11 +748,11 @@ canvas {
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
 
-.aura-container .stat-label {
+.aura-container .stat-label, .aura-container .location-count {
     color: rgba(255, 255, 255, 0.7) !important;
 }
 
-.aura-container .stat-value {
+.aura-container .stat-value, .aura-container .location-name {
     color: #ffffff !important;
 }
 

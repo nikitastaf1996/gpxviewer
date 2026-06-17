@@ -84,7 +84,14 @@ def create_aura_video(width, height, filename, duration=10, fps=30):
         out.write(final_frame)
 
     out.release()
-    print(f"Finished rendering {filename}")
+
+    # Transcode to H.264 for web compatibility
+    temp_filename = filename.replace('.mp4', '_temp.mp4')
+    os.rename(filename, temp_filename)
+    os.system(f"ffmpeg -y -i {temp_filename} -c:v libx264 -pix_fmt yuv420p -profile:v baseline -level 3.0 {filename} > /dev/null 2>&1")
+    os.remove(temp_filename)
+
+    print(f"Finished rendering and transcoding {filename}")
 
 if __name__ == "__main__":
     os.makedirs("assets/videos", exist_ok=True)

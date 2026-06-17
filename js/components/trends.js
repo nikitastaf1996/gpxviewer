@@ -67,7 +67,17 @@ document.addEventListener('alpine:init', () => {
             const videos = document.querySelectorAll('.aura-video');
             videos.forEach(v => {
                 if (window.getComputedStyle(v).display !== 'none') {
-                    v.play().catch(e => console.log("Video play failed:", e));
+                    // Force reload if needed and play
+                    if (v.readyState < 3) v.load();
+                    v.play().catch(e => {
+                        console.log("Video play failed, retrying on interaction:", e);
+                        // Fallback for some browsers that require explicit interaction
+                        const playOnce = () => {
+                            v.play();
+                            document.removeEventListener('click', playOnce);
+                        };
+                        document.addEventListener('click', playOnce);
+                    });
                 }
             });
         },

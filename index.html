@@ -177,26 +177,40 @@
     </div>
 
     <div id="trends-content" x-show="$store.app.savedFiles.length > 0">
-        <div class="lifetime-stats">
-            <div class="stat-card">
-                <span class="stat-label">Total Distance</span>
-                <span class="stat-value" x-text="($store.app.lifetimeStats.totalDistance).toFixed(2) + ' km'">0.00 km</span>
+        <div class="aura-container">
+            <!-- Background layers (not passed through SVG filter for speed) -->
+            <div class="blotch diffuse-pink" id="b-diffuse-pink"></div>
+            <div class="blotch diffuse-orange" id="b-diffuse-orange"></div>
+
+            <!-- Foreground layers (passed through optimized SVG filter) -->
+            <div class="distorted-foreground">
+                <div class="blotch edged-pink" id="b-edged-pink"></div>
+                <div class="blotch edged-cyan" id="b-edged-cyan"></div>
+                <div class="blotch edged-blue" id="b-edged-blue"></div>
+                <div class="blotch edged-yellow" id="b-edged-yellow"></div>
             </div>
-            <div class="stat-card">
-                <span class="stat-label">Total Time</span>
-                <span class="stat-value" x-text="formatLifetimeDuration($store.app.lifetimeStats.totalDuration)">0h 0m</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-label">Runs</span>
-                <span class="stat-value" x-text="$store.app.lifetimeStats.runCount">0</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-label">Avg Pace</span>
-                <span class="stat-value" x-text="window.gpxUtils.formatPace($store.app.lifetimeStats.avgPace)">0:00 /km</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-label">Total Calories</span>
-                <span class="stat-value" x-text="$store.app.lifetimeStats.totalCalories">0</span>
+
+            <div class="lifetime-stats">
+                <div class="stat-card">
+                    <span class="stat-label">Total Distance</span>
+                    <span class="stat-value" x-text="($store.app.lifetimeStats.totalDistance).toFixed(2) + ' km'">0.00 km</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Total Time</span>
+                    <span class="stat-value" x-text="formatLifetimeDuration($store.app.lifetimeStats.totalDuration)">0h 0m</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Runs</span>
+                    <span class="stat-value" x-text="$store.app.lifetimeStats.runCount">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Avg Pace</span>
+                    <span class="stat-value" x-text="window.gpxUtils.formatPace($store.app.lifetimeStats.avgPace)">0:00 /km</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Total Calories</span>
+                    <span class="stat-value" x-text="$store.app.lifetimeStats.totalCalories">0</span>
+                </div>
             </div>
         </div>
 
@@ -364,6 +378,16 @@
 <script src="./js/components/trends.js"></script>
 <script src="./js/components/settings.js"></script>
 <script src="./js/main.js"></script>
+
+<!-- Optimized SVG Filter: Reduced numOctaves down to 1 to minimize pixel recalculations -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+    <defs>
+        <filter id="optimized-liquid-warp">
+            <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="1" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="45" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+    </defs>
+</svg>
 
 </body>
 </html>

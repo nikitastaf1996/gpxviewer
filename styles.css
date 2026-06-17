@@ -690,3 +690,121 @@ canvas {
         padding: 2rem 2rem 1rem;
     }
 }
+
+/* Liquid Aura Animation & Glassmorphism */
+.aura-container {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    background-color: #030106;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.blotch {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate3d(-50%, -50%, 0);
+    mix-blend-mode: screen;
+    will-change: transform, border-radius;
+    pointer-events: none;
+}
+
+.diffuse-pink {
+    width: 80vw;
+    height: 80vw;
+    background: #e6007a;
+    filter: blur(80px);
+    opacity: 0.4;
+    animation: morph-alt 26s infinite ease-in-out;
+}
+
+.diffuse-orange {
+    width: 70vw;
+    height: 70vw;
+    background: #ff5500;
+    filter: blur(70px);
+    opacity: 0.3;
+    animation: morph-main 30s infinite ease-in-out;
+}
+
+.distorted-foreground {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    filter: url(#optimized-liquid-warp);
+    will-change: transform;
+}
+
+.edged-yellow {
+    width: 40vw;
+    height: 40vw;
+    background: #ffe600;
+    filter: blur(20px);
+    opacity: 0.6;
+    animation: morph-main 20s infinite ease-in-out;
+}
+
+.edged-pink {
+    width: 35vw;
+    height: 35vw;
+    background: #e6007a;
+    filter: blur(25px);
+    opacity: 0.6;
+    animation: morph-alt 22s infinite ease-in-out;
+}
+
+.edged-cyan {
+    width: 38vw;
+    height: 38vw;
+    background: #00f5d4;
+    filter: blur(28px);
+    opacity: 0.5;
+    animation: morph-alt 24s infinite ease-in-out;
+}
+
+.edged-blue {
+    width: 32vw;
+    height: 32vw;
+    background: #0055ff;
+    filter: blur(30px);
+    opacity: 0.5;
+    animation: morph-main 18s infinite ease-in-out;
+}
+
+@keyframes morph-main {
+    0%, 100% { border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%; }
+    50% { border-radius: 65% 35% 50% 50% / 55% 45% 55% 45%; }
+}
+
+@keyframes morph-alt {
+    0%, 100% { border-radius: 50% 50% 40% 60% / 50% 40% 60% 50%; }
+    50% { border-radius: 40% 60% 60% 40% / 60% 45% 55% 40%; }
+}
+
+/* Glassy Stat Cards inside Aura Container */
+.aura-container .stat-card {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.aura-container .stat-label {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.aura-container .stat-value {
+    color: #ffffff !important;
+}
+
+.aura-container .lifetime-stats {
+    position: relative;
+    z-index: 2;
+    background: transparent;
+}

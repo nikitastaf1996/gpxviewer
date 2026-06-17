@@ -3,6 +3,15 @@ document.addEventListener('alpine:init', () => {
         globalChart: null,
         monthlyCharts: {}, // label -> chartInstance
         isInitialized: false,
+        auraAnimationId: null,
+        blotches: [
+            { id: 'b-diffuse-pink',   x: -12, y: -10, rx: 14, ry: 10, speedX: 0.0006, speedY: 0.0004, phase: 0 },
+            { id: 'b-diffuse-orange', x: 12,  y: 10,  rx: 12, ry: 12, speedX: -0.0004, speedY: 0.0006, phase: 1.5 },
+            { id: 'b-edged-pink',     x: -15, y: -5,  rx: 15, ry: 12, speedX: -0.0008, speedY: 0.0005, phase: 3.1 },
+            { id: 'b-edged-cyan',     x: 10,  y: -15, rx: 14, ry: 15, speedX: 0.0007, speedY: -0.0006, phase: 4.8 },
+            { id: 'b-edged-blue',     x: -8,  y: 12,  rx: 12, ry: 14, speedX: -0.0005, speedY: -0.0007, phase: 0.8 },
+            { id: 'b-edged-yellow',   x: 0,   y: 0,   rx: 8,  ry: 8,  speedX: 0.0010, speedY: -0.0008, phase: 2.2 }
+        ],
 
         globalChartIndex: 0,
         globalChartTypes: [
@@ -51,11 +60,41 @@ document.addEventListener('alpine:init', () => {
             window.addEventListener('tab-changed', (e) => {
                 if (e.detail.tab === 'trends') {
                     setTimeout(() => this.refreshAll(), 200);
+                    this.startAuraAnimation();
+                } else {
+                    this.stopAuraAnimation();
                 }
             });
 
             if (Alpine.store('app').activeTab === 'trends') {
                 setTimeout(() => this.refreshAll(), 200);
+                this.startAuraAnimation();
+            }
+        },
+
+        startAuraAnimation() {
+            if (this.auraAnimationId) return;
+
+            const animate = (time) => {
+                for (let i = 0; i < this.blotches.length; i++) {
+                    const b = this.blotches[i];
+                    const el = document.getElementById(b.id);
+                    if (el) {
+                        const dx = b.x + Math.sin(time * b.speedX + b.phase) * b.rx;
+                        const dy = b.y + Math.cos(time * b.speedY + b.phase) * b.ry;
+                        el.style.transform = `translate3d(calc(-50% + ${dx}vw), calc(-50% + ${dy}vh), 0)`;
+                    }
+                }
+                this.auraAnimationId = requestAnimationFrame(animate);
+            };
+
+            this.auraAnimationId = requestAnimationFrame(animate);
+        },
+
+        stopAuraAnimation() {
+            if (this.auraAnimationId) {
+                cancelAnimationFrame(this.auraAnimationId);
+                this.auraAnimationId = null;
             }
         },
 

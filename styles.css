@@ -691,7 +691,7 @@ canvas {
     }
 }
 
-/* Liquid Aura Animation & Glassmorphism */
+/* Liquid Aura Video & Glassmorphism */
 .aura-container {
     position: relative;
     width: 100%;
@@ -702,88 +702,43 @@ canvas {
     margin-bottom: 1rem;
 }
 
-.blotch {
+.aura-video {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate3d(-50%, -50%, 0);
-    mix-blend-mode: screen;
-    will-change: transform, border-radius;
-    pointer-events: none;
-}
-
-.diffuse-pink {
-    width: 80vw;
-    height: 80vw;
-    background: #e6007a;
-    filter: blur(80px);
-    opacity: 0.4;
-    animation: morph-alt 26s infinite ease-in-out;
-}
-
-.diffuse-orange {
-    width: 70vw;
-    height: 70vw;
-    background: #ff5500;
-    filter: blur(70px);
-    opacity: 0.3;
-    animation: morph-main 30s infinite ease-in-out;
-}
-
-.distorted-foreground {
-    position: absolute;
-    width: 100%;
-    height: 100%;
     top: 0;
     left: 0;
-    filter: url(#optimized-liquid-warp);
-    will-change: transform;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+    pointer-events: none;
+    display: none;
 }
 
-.edged-yellow {
-    width: 40vw;
-    height: 40vw;
-    background: #ffe600;
-    filter: blur(20px);
-    opacity: 0.6;
-    animation: morph-main 20s infinite ease-in-out;
+/* Default Fallback */
+.aura-video-400x400 { display: block; }
+
+/* Mobile Portrait */
+@media (max-width: 480px) and (min-height: 500px) {
+    .aura-video { display: none; }
+    .aura-video-400x600 { display: block; }
 }
 
-.edged-pink {
-    width: 35vw;
-    height: 35vw;
-    background: #e6007a;
-    filter: blur(25px);
-    opacity: 0.6;
-    animation: morph-alt 22s infinite ease-in-out;
+/* Landscape / Small Screen */
+@media (min-width: 481px) and (max-height: 500px) {
+    .aura-video { display: none; }
+    .aura-video-600x400 { display: block; }
 }
 
-.edged-cyan {
-    width: 38vw;
-    height: 38vw;
-    background: #00f5d4;
-    filter: blur(28px);
-    opacity: 0.5;
-    animation: morph-alt 24s infinite ease-in-out;
+/* Tablet / Desktop */
+@media (min-width: 768px) {
+    .aura-video { display: none; }
+    .aura-video-800x400 { display: block; }
 }
 
-.edged-blue {
-    width: 32vw;
-    height: 32vw;
-    background: #0055ff;
-    filter: blur(30px);
-    opacity: 0.5;
-    animation: morph-main 18s infinite ease-in-out;
-}
-
-@keyframes morph-main {
-    0%, 100% { border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%; }
-    50% { border-radius: 65% 35% 50% 50% / 55% 45% 55% 45%; }
-}
-
-@keyframes morph-alt {
-    0%, 100% { border-radius: 50% 50% 40% 60% / 50% 40% 60% 50%; }
-    50% { border-radius: 40% 60% 60% 40% / 60% 45% 55% 40%; }
+/* Large Desktop */
+@media (min-width: 1200px) {
+    .aura-video { display: none; }
+    .aura-video-1000x500 { display: block; }
 }
 
 /* Glassy Stat Cards inside Aura Container */

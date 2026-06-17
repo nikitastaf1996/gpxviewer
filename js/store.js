@@ -32,6 +32,7 @@ document.addEventListener('alpine:init', () => {
         },
         geocodingEntity: 'city',
         userWeight: 70,
+        showLiquidAura: true,
 
         showTab(tabId) {
             this.activeTab = tabId;
@@ -47,6 +48,7 @@ document.addEventListener('alpine:init', () => {
                     this.visibleCharts = saved.visibleCharts;
                     this.geocodingEntity = saved.geocodingEntity || 'city';
                     this.userWeight = saved.userWeight || 70;
+                    this.showLiquidAura = saved.showLiquidAura !== undefined ? saved.showLiquidAura : true;
                 } else {
                     // Legacy format
                     this.visibleCharts = saved;
@@ -58,7 +60,8 @@ document.addEventListener('alpine:init', () => {
             const settings = {
                 visibleCharts: JSON.parse(JSON.stringify(this.visibleCharts)),
                 geocodingEntity: this.geocodingEntity,
-                userWeight: this.userWeight
+                userWeight: this.userWeight,
+                showLiquidAura: this.showLiquidAura
             };
             await window.dbManager.set('settings', 'gpxViewerSettings', settings);
 

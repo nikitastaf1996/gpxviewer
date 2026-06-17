@@ -51,12 +51,52 @@ document.addEventListener('alpine:init', () => {
             window.addEventListener('tab-changed', (e) => {
                 if (e.detail.tab === 'trends') {
                     setTimeout(() => this.refreshAll(), 200);
+                    this.playAuraVideo();
+                } else {
+                    this.pauseAuraVideo();
                 }
             });
 
             if (Alpine.store('app').activeTab === 'trends') {
                 setTimeout(() => this.refreshAll(), 200);
+                this.playAuraVideo();
             }
+
+            this.$watch('$store.app.showLiquidAura', (val) => {
+                if (Alpine.store('app').activeTab === 'trends') {
+                    if (val) {
+                        this.playAuraVideo();
+                    } else {
+                        this.pauseAuraVideo();
+                    }
+                    // Refresh charts as the layout change might affect sizing
+                    setTimeout(() => this.refreshAll(), 100);
+                }
+            });
+        },
+
+        playAuraVideo() {
+            const videos = document.querySelectorAll('.aura-video');
+            videos.forEach(v => {
+                if (window.getComputedStyle(v).display !== 'none') {
+                    // Force reload if needed and play
+                    if (v.readyState < 3) v.load();
+                    v.play().catch(e => {
+                        console.log("Video play failed, retrying on interaction:", e);
+                        // Fallback for some browsers that require explicit interaction
+                        const playOnce = () => {
+                            v.play();
+                            document.removeEventListener('click', playOnce);
+                        };
+                        document.addEventListener('click', playOnce);
+                    });
+                }
+            });
+        },
+
+        pauseAuraVideo() {
+            const videos = document.querySelectorAll('.aura-video');
+            videos.forEach(v => v.pause());
         },
 
         refreshAll() {

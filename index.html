@@ -429,15 +429,15 @@
                     <span class="w-stat-label">Dist</span>
                     <span class="w-stat-value" x-text="hoverStats.distance">0.00 km</span>
                 </div>
-                <div class="w-stat">
+                <div class="w-stat" x-show="$store.app.activeChartType !== 'elevation'">
                     <span class="w-stat-label">Pace</span>
                     <span class="w-stat-value" x-text="hoverStats.pace">0:00</span>
                 </div>
-                <div class="w-stat">
+                <div class="w-stat" x-show="$store.app.activeChartType !== 'pace'">
                     <span class="w-stat-label">Grade</span>
                     <span class="w-stat-value" x-text="hoverStats.grade">0%</span>
                 </div>
-                <div class="w-stat">
+                <div class="w-stat" x-show="$store.app.activeChartType !== 'pace'">
                     <span class="w-stat-label">Ele</span>
                     <span class="w-stat-value" x-text="hoverStats.elevation">0 m</span>
                 </div>

@@ -14,6 +14,9 @@ document.addEventListener('alpine:init', () => {
 
         isInitialized: false,
         lastPanTime: 0,
+        resizeObserver: null,
+        isDragging: false,
+        dragType: null, // 'pan', 'start', 'end'
 
         init() {
             // Alpine calls this on load, but we want to init only when workspace is opened
@@ -25,6 +28,7 @@ document.addEventListener('alpine:init', () => {
             this.$nextTick(() => {
                 this.initWorkspaceMap();
                 this.initWorkspaceCharts();
+                this.initResizeObserver();
                 if (Alpine.store('app').activeProcessedData) {
                     this.updateHoverStats(0);
                     this.updateMapMarker(0);
@@ -148,7 +152,8 @@ document.addEventListener('alpine:init', () => {
         },
 
         createSliderChart(data, type) {
-            const ctx = document.getElementById('workspace-chart-slider').getContext('2d');
+            const canvas = document.getElementById('workspace-chart-slider');
+            const ctx = canvas.getContext('2d');
             // Always show elevation for slider for context
             const sliderData = data.map(d => ({x: d.dist, y: d.ele}));
 
@@ -175,13 +180,6 @@ document.addEventListener('alpine:init', () => {
                     plugins: {
                         legend: { display: false },
                         tooltip: { enabled: false }
-                    },
-                    onClick: (event) => {
-                        const points = this.sliderChart.getElementsAtEventForMode(event, 'index', { intersect: false }, true);
-                        if (points.length > 0) {
-                            const index = points[0].index;
-                            this.updateZoomFromSlider(index);
-                        }
                     }
                 },
                 plugins: [{
@@ -193,15 +191,122 @@ document.addEventListener('alpine:init', () => {
                         const xEnd = chart.scales.x.getPixelForValue(chart.data.datasets[0].data[end].x);
 
                         ctx.save();
+                        // Overlay
                         ctx.fillStyle = 'rgba(0, 98, 255, 0.1)';
                         ctx.fillRect(xStart, chart.chartArea.top, xEnd - xStart, chart.chartArea.height);
+
+                        // Borders
                         ctx.strokeStyle = '#0062ff';
                         ctx.lineWidth = 2;
-                        ctx.strokeRect(xStart, chart.chartArea.top, xEnd - xStart, chart.chartArea.height);
+                        ctx.beginPath();
+                        ctx.moveTo(xStart, chart.chartArea.top);
+                        ctx.lineTo(xStart, chart.chartArea.bottom);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(xEnd, chart.chartArea.top);
+                        ctx.lineTo(xEnd, chart.chartArea.bottom);
+                        ctx.stroke();
+
+                        // Handles
+                        ctx.fillStyle = '#0062ff';
+                        ctx.fillRect(xStart - 4, chart.chartArea.top + (chart.chartArea.height/2) - 10, 8, 20);
+                        ctx.fillRect(xEnd - 4, chart.chartArea.top + (chart.chartArea.height/2) - 10, 8, 20);
+
                         ctx.restore();
                     }
                 }]
             });
+
+            // Interaction logic
+            canvas.addEventListener('pointerdown', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const value = this.sliderChart.scales.x.getValueForPixel(x);
+
+                // Find nearest index
+                const index = this.findNearestIndex(value);
+                const {start, end} = Alpine.store('app').zoomRange;
+
+                const xStart = this.sliderChart.scales.x.getPixelForValue(this.sliderChart.data.datasets[0].data[start].x);
+                const xEnd = this.sliderChart.scales.x.getPixelForValue(this.sliderChart.data.datasets[0].data[end].x);
+
+                if (Math.abs(x - xStart) < 15) {
+                    this.isDragging = true;
+                    this.dragType = 'start';
+                } else if (Math.abs(x - xEnd) < 15) {
+                    this.isDragging = true;
+                    this.dragType = 'end';
+                } else if (x > xStart && x < xEnd) {
+                    this.isDragging = true;
+                    this.dragType = 'pan';
+                    this.dragOffset = index - start;
+                } else {
+                    // Jump to click
+                    this.updateZoomFromSlider(index);
+                }
+                canvas.setPointerCapture(e.pointerId);
+            });
+
+            canvas.addEventListener('pointermove', (e) => {
+                if (!this.isDragging) {
+                    // Update cursor
+                    const rect = canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const {start, end} = Alpine.store('app').zoomRange;
+                    const xStart = this.sliderChart.scales.x.getPixelForValue(this.sliderChart.data.datasets[0].data[start].x);
+                    const xEnd = this.sliderChart.scales.x.getPixelForValue(this.sliderChart.data.datasets[0].data[end].x);
+
+                    if (Math.abs(x - xStart) < 15 || Math.abs(x - xEnd) < 15) {
+                        canvas.style.cursor = 'ew-resize';
+                    } else if (x > xStart && x < xEnd) {
+                        canvas.style.cursor = 'grab';
+                    } else {
+                        canvas.style.cursor = 'default';
+                    }
+                    return;
+                }
+
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const value = this.sliderChart.scales.x.getValueForPixel(x);
+                const index = this.findNearestIndex(value);
+                const dataLength = Alpine.store('app').activeProcessedData.length;
+                let {start, end} = Alpine.store('app').zoomRange;
+
+                if (this.dragType === 'start') {
+                    start = Math.max(0, Math.min(index, end - 10));
+                } else if (this.dragType === 'end') {
+                    end = Math.max(start + 10, Math.min(index, dataLength - 1));
+                } else if (this.dragType === 'pan') {
+                    const windowSize = end - start;
+                    start = index - this.dragOffset;
+                    if (start < 0) start = 0;
+                    if (start + windowSize >= dataLength) start = dataLength - 1 - windowSize;
+                    end = start + windowSize;
+                }
+
+                Alpine.store('app').zoomRange = { start, end };
+                this.updateMainChart();
+                this.sliderChart.draw();
+            });
+
+            canvas.addEventListener('pointerup', (e) => {
+                this.isDragging = false;
+                this.dragType = null;
+                canvas.releasePointerCapture(e.pointerId);
+            });
+        },
+
+        findNearestIndex(xValue) {
+            const data = Alpine.store('app').activeProcessedData;
+            let low = 0;
+            let high = data.length - 1;
+            while (low < high) {
+                const mid = Math.floor((low + high) / 2);
+                if (data[mid].dist < xValue) low = mid + 1;
+                else high = mid;
+            }
+            return low;
         },
 
         updateZoomFromSlider(index) {
@@ -323,6 +428,15 @@ document.addEventListener('alpine:init', () => {
             this.hoverStats.elevation = d.ele.toFixed(0) + ' m';
         },
 
+        initResizeObserver() {
+            this.resizeObserver = new ResizeObserver(() => {
+                if (this.mainChart) this.mainChart.resize();
+                if (this.sliderChart) this.sliderChart.resize();
+                if (this.map) this.map.invalidateSize();
+            });
+            this.resizeObserver.observe(document.getElementById('fullscreen-analysis-workspace'));
+        },
+
         updateMapMarker(index) {
             const points = Alpine.store('app').activePoints;
             const p = points[index];
@@ -353,6 +467,10 @@ document.addEventListener('alpine:init', () => {
             if (this.map) {
                 this.map.remove();
                 this.map = null;
+            }
+            if (this.resizeObserver) {
+                this.resizeObserver.disconnect();
+                this.resizeObserver = null;
             }
             this.marker = null;
             this.polyline = null;

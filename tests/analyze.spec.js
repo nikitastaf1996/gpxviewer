@@ -44,7 +44,7 @@ test.describe('Analyze Tab', () => {
 
   test('should display the map', async ({ page }) => {
     await expect(page.locator('#map')).toBeVisible();
-    await expect(page.locator('.leaflet-container')).toBeVisible();
+    await expect(page.locator('#map.leaflet-container')).toBeVisible();
   });
 
   test('should display charts', async ({ page }) => {

@@ -88,12 +88,21 @@
 
         <div id="charts-container">
             <div class="chart-wrapper" id="wrapper-elevation" x-show="$store.app.visibleCharts.elevation">
+                <button class="expand-chart-btn" @click="openFullscreen('elevation')" title="Expand Elevation">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                </button>
                 <canvas id="elevation-chart"></canvas>
             </div>
             <div class="chart-wrapper" id="wrapper-pace" x-show="$store.app.visibleCharts.pace">
+                <button class="expand-chart-btn" @click="openFullscreen('pace')" title="Expand Pace">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                </button>
                 <canvas id="pace-chart"></canvas>
             </div>
             <div class="chart-wrapper" id="wrapper-combo" x-show="$store.app.visibleCharts.combo">
+                <button class="expand-chart-btn" @click="openFullscreen('combo')" title="Expand Combo">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                </button>
                 <canvas id="combo-chart"></canvas>
             </div>
             <div class="chart-wrapper" id="wrapper-climb" x-show="$store.app.visibleCharts.climb">
@@ -399,6 +408,53 @@
     </div>
 </div>
 
+<div id="fullscreen-analysis-workspace" x-data="workspace" x-show="$store.app.isFullscreenAnalysisActive" style="display: none;" x-effect="if ($store.app.isFullscreenAnalysisActive) init(); else destroy();">
+    <div class="workspace-header">
+        <div class="workspace-title-group">
+            <h2 x-text="$store.app.activeChartType.charAt(0).toUpperCase() + $store.app.activeChartType.slice(1) + ' Analysis'"></h2>
+        </div>
+        <button class="workspace-close-btn" @click="closeFullscreen()" title="Close Analysis">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+    </div>
+
+    <div class="workspace-layout">
+        <div class="workspace-map-zone">
+            <div id="workspace-map"></div>
+        </div>
+
+        <div class="workspace-right-col">
+            <div id="workspace-stats-banner" class="workspace-stats-banner">
+                <div class="w-stat">
+                    <span class="w-stat-label">Dist</span>
+                    <span class="w-stat-value" x-text="hoverStats.distance">0.00 km</span>
+                </div>
+                <div class="w-stat">
+                    <span class="w-stat-label">Pace</span>
+                    <span class="w-stat-value" x-text="hoverStats.pace">0:00</span>
+                </div>
+                <div class="w-stat">
+                    <span class="w-stat-label">Grade</span>
+                    <span class="w-stat-value" x-text="hoverStats.grade">0%</span>
+                </div>
+                <div class="w-stat">
+                    <span class="w-stat-label">Ele</span>
+                    <span class="w-stat-value" x-text="hoverStats.elevation">0 m</span>
+                </div>
+            </div>
+
+            <div class="workspace-charts-zone">
+                <div class="workspace-main-chart-container">
+                    <canvas id="workspace-chart-main"></canvas>
+                </div>
+                <div class="workspace-slider-chart-container">
+                    <canvas id="workspace-chart-slider"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <nav id="bottom-nav">
     <button class="nav-item" :class="{ 'active': $store.app.activeTab === 'analyze' }" x-on:click="$store.app.showTab('analyze')">
         <span class="nav-icon">
@@ -438,6 +494,7 @@
 <script src="./js/components/library.js"></script>
 <script src="./js/components/trends.js"></script>
 <script src="./js/components/settings.js"></script>
+<script src="./js/components/workspace.js"></script>
 <script src="./js/main.js"></script>
 
 </body>

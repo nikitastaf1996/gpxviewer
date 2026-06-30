@@ -94,8 +94,20 @@ document.addEventListener('alpine:init', () => {
 
                 const points = window.gpxUtils.processGpxPoints(gpxData);
                 const processedData = window.gpxUtils.calculateMetrics(points);
+                Alpine.store('app').activePoints = points;
+                Alpine.store('app').activeProcessedData = processedData;
                 this.generateCharts(processedData, points);
             }).addTo(this.map);
+        },
+
+        openFullscreen(type) {
+            Alpine.store('app').activeChartType = type;
+            Alpine.store('app').zoomRange = { start: 0, end: Alpine.store('app').activeProcessedData.length - 1 };
+            Alpine.store('app').isFullscreenAnalysisActive = true;
+        },
+
+        closeFullscreen() {
+            Alpine.store('app').isFullscreenAnalysisActive = false;
         },
 
         async updateRunName(newName) {

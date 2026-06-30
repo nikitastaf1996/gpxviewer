@@ -35,6 +35,12 @@ document.addEventListener('alpine:init', () => {
         geocodingEntity: 'city',
         userWeight: 70,
         showLiquidAura: true,
+        isFullscreenAnalysisActive: false,
+        activeChartType: '',
+        zoomRange: { start: 0, end: 100 },
+        hoveredTrackpoint: null,
+        activePoints: null,
+        activeProcessedData: null,
 
         showTab(tabId) {
             this.activeTab = tabId;

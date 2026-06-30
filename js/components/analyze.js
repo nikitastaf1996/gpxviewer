@@ -73,14 +73,20 @@ document.addEventListener('alpine:init', () => {
                 const weight = Alpine.store('app').userWeight || 70;
                 Alpine.store('app').activeGpxStats.distance = distKm.toFixed(2) + " km";
                 Alpine.store('app').activeGpxStats.duration = window.gpxUtils.formatDuration(gpx.get_total_time());
+                Alpine.store('app').activeGpxStats.movingTime = window.gpxUtils.formatDuration(gpx.get_moving_time());
                 Alpine.store('app').activeGpxStats.startTime = new Date(metadata.date).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 Alpine.store('app').activeGpxStats.calories = Math.round(distKm * weight * 1.036);
 
                 if (distKm > 0) {
                     const paceMinPerKm = (gpx.get_total_time() / 1000 / 60) / distKm;
                     Alpine.store('app').activeGpxStats.pace = window.gpxUtils.formatPace(paceMinPerKm);
+
+                    const movingPaceMsPerKm = gpx.get_moving_pace();
+                    const movingPaceMinPerKm = movingPaceMsPerKm / 1000 / 60;
+                    Alpine.store('app').activeGpxStats.movingPace = window.gpxUtils.formatPace(movingPaceMinPerKm);
                 } else {
                     Alpine.store('app').activeGpxStats.pace = "-";
+                    Alpine.store('app').activeGpxStats.movingPace = "-";
                 }
 
                 Alpine.store('app').activeGpxStats.elevationGain = gpx.get_elevation_gain().toFixed(0) + " m";

@@ -96,8 +96,8 @@ test.describe('Library Tab', () => {
         await page.click('#bottom-nav button:has-text("Library")');
     }
 
-    await expect(page.locator('.month-header')).toHaveCount(2);
-    await expect(page.locator('.month-header').first()).toContainText('October 2025');
-    await expect(page.locator('.month-header').last()).toContainText('August 2025');
+    await expect(page.locator('#saved-list .month-header')).toHaveCount(2);
+    await expect(page.locator('#saved-list .month-header').first()).toContainText('October 2025');
+    await expect(page.locator('#saved-list .month-header').last()).toContainText('August 2025');
   });
 });

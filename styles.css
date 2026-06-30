@@ -215,6 +215,45 @@ header h1 {
     color: var(--text-main);
 }
 
+.pace-stat-item {
+    grid-column: span 2;
+}
+
+.pace-chips-container {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 4px;
+}
+
+.pace-chip {
+    flex: 1;
+    background: var(--bg-light);
+    padding: 0.5rem 0.75rem;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+}
+
+.pace-chip-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    margin-bottom: 2px;
+}
+
+.pace-chip-value {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--primary-color);
+}
+
+.moving-pace .pace-chip-value {
+    color: var(--accent-color);
+}
+
 #map {
     height: 300px;
     width: calc(100% - 2rem);

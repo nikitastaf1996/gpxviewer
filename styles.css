@@ -272,6 +272,29 @@ header h1 {
     padding: 1rem;
 }
 
+.expand-chart-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-color);
+    cursor: pointer;
+    z-index: 5;
+    transition: all 0.2s;
+    box-shadow: var(--shadow-sm);
+}
+
+.expand-chart-btn:active {
+    transform: scale(0.9);
+}
+
 .chart-wrapper {
     position: relative;
     height: 250px;
@@ -641,6 +664,167 @@ canvas {
     background: var(--bg-light);
     padding: 2px 8px;
     border-radius: 12px;
+}
+
+/* Fullscreen Analysis Workspace */
+#fullscreen-analysis-workspace {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    background-color: var(--bg-light);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.workspace-right-col {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.workspace-header {
+    height: 60px;
+    background: #fff;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem;
+    flex-shrink: 0;
+}
+
+.workspace-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.workspace-close-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: var(--bg-light);
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.workspace-layout {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.workspace-map-zone {
+    height: 30%;
+    min-height: 200px;
+    position: relative;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#workspace-map {
+    width: 100%;
+    height: 100%;
+}
+
+.workspace-stats-banner {
+    height: 10%;
+    min-height: 60px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 0.5rem;
+}
+
+.w-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.w-stat-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.w-stat-value {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--primary-color);
+}
+
+.workspace-charts-zone {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem;
+    gap: 0.5rem;
+    overflow: hidden;
+    width: 100%;
+}
+
+.workspace-main-chart-container {
+    height: 70%;
+    width: 100%;
+    background: #fff;
+    border-radius: var(--radius-md);
+    padding: 0.75rem;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+}
+
+.workspace-slider-chart-container {
+    height: 25%;
+    width: 100%;
+    background: #fff;
+    border-radius: var(--radius-md);
+    padding: 0.5rem;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+}
+
+/* Landscape Mode for Workspace */
+@media (min-width: 481px) and (orientation: landscape) {
+    .workspace-layout {
+        flex-direction: row;
+    }
+
+    .workspace-map-zone {
+        width: 40%;
+        height: 100%;
+        border-bottom: none;
+        border-right: 1px solid var(--border-color);
+    }
+
+    .workspace-right-col {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .workspace-stats-banner {
+        height: 70px;
+    }
+
+    .workspace-charts-zone {
+        flex-grow: 1;
+    }
 }
 
 /* Bottom Nav */

@@ -44,12 +44,25 @@
                 <span class="stat-value" x-text="$store.app.activeGpxStats.duration || '-'">-</span>
             </div>
             <div class="stat-item">
+                <span class="stat-label">Moving Time</span>
+                <span class="stat-value" x-text="$store.app.activeGpxStats.movingTime || '-'">-</span>
+            </div>
+            <div class="stat-item">
                 <span class="stat-label">Start Time</span>
                 <span class="stat-value" x-text="$store.app.activeGpxStats.startTime || '-'">-</span>
             </div>
-            <div class="stat-item">
+            <div class="stat-item pace-stat-item">
                 <span class="stat-label">Pace</span>
-                <span class="stat-value" x-text="$store.app.activeGpxStats.pace || '-'">-</span>
+                <div class="pace-chips-container">
+                    <div class="pace-chip total-pace">
+                        <span class="pace-chip-label">Total</span>
+                        <span class="pace-chip-value" x-text="$store.app.activeGpxStats.pace || '-'">-</span>
+                    </div>
+                    <div class="pace-chip moving-pace">
+                        <span class="pace-chip-label">Moving</span>
+                        <span class="pace-chip-value" x-text="$store.app.activeGpxStats.movingPace || '-'">-</span>
+                    </div>
+                </div>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Elevation Gain</span>

@@ -33,7 +33,13 @@ test.describe('Analyze Tab', () => {
     await expect(page.locator('#stats')).toBeVisible();
     await expect(page.locator('.stat-item:has-text("Distance") .stat-value')).not.toContainText('-');
     await expect(page.locator('.stat-item:has-text("Total Time") .stat-value')).not.toContainText('-');
-    await expect(page.locator('.stat-item:has-text("Pace") .stat-value')).not.toContainText('-');
+    await expect(page.locator('.stat-item:has-text("Moving Time") .stat-value')).not.toContainText('-');
+
+    // Check Pace chips
+    await expect(page.locator('.pace-chip.total-pace .pace-chip-value')).not.toContainText('-');
+    await expect(page.locator('.pace-chip.moving-pace .pace-chip-value')).not.toContainText('-');
+    await expect(page.locator('.pace-chip.total-pace .pace-chip-label')).toHaveText('Total');
+    await expect(page.locator('.pace-chip.moving-pace .pace-chip-label')).toHaveText('Moving');
   });
 
   test('should display the map', async ({ page }) => {

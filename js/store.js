@@ -6,7 +6,9 @@ document.addEventListener('alpine:init', () => {
         activeGpxStats: {
             distance: null,
             duration: null,
+            movingTime: null,
             pace: null,
+            movingPace: null,
             elevationGain: null,
             elevationLoss: null,
             location: null,

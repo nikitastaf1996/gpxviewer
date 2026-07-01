@@ -2,6 +2,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.store('app', {
         activeTab: 'library',
         savedFiles: [],
+        isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
         activeGpx: null,
         activeGpxStats: {
             distance: null,
@@ -48,6 +49,38 @@ document.addEventListener('alpine:init', () => {
             window.dispatchEvent(new CustomEvent('tab-changed', { detail: { tab: tabId } }));
         },
 
+        // In-page modal + toast primitives. See index.html (#modal-root, #toast-root).
+        _toastTimer: null,
+        confirm(options) {
+            const root = document.getElementById('modal-root');
+            const data = root && root._x_dataStack ? root._x_dataStack[0] : null;
+            if (!data) {
+                // Fallback during early init / SSR / no-Alpine context.
+                if (window.confirm(options.message || '')) {
+                    try { options.onConfirm && options.onConfirm(); } catch (e) { console.error(e); }
+                }
+                return;
+            }
+            data.title = options.title || 'Confirm';
+            data.message = options.message || '';
+            data.onConfirm = options.onConfirm || null;
+            data.open = true;
+        },
+        toast(message) {
+            const root = document.getElementById('toast-root');
+            const data = root && root._x_dataStack ? root._x_dataStack[0] : null;
+            if (!data) { console.log('[toast]', message); return; }
+            data.message = message;
+            data.visible = true;
+            clearTimeout(this._toastTimer);
+            this._toastTimer = setTimeout(() => { data.visible = false; }, 3500);
+        },
+
+        initOnlineListeners() {
+            window.addEventListener('online', () => { this.isOnline = true; });
+            window.addEventListener('offline', () => { this.isOnline = false; });
+        },
+
         async loadSettings() {
             const saved = await window.dbManager.get('settings', 'gpxViewerSettings');
             if (saved) {
@@ -81,9 +114,9 @@ document.addEventListener('alpine:init', () => {
 
         async loadSavedMetadata() {
             const savedMeta = await window.dbManager.getAll('metadata');
-            this.savedFiles = Object.keys(savedMeta).map(filename => ({
-                filename,
-                ...savedMeta[filename]
+            this.savedFiles = Object.keys(savedMeta).map(id => ({
+                id,
+                ...savedMeta[id]
             })).sort((a, b) => new Date(b.date) - new Date(a.date));
 
             // Calculate lifetime stats
@@ -93,7 +126,7 @@ document.addEventListener('alpine:init', () => {
             this.savedFiles.forEach(f => {
                 totalDist += f.distance || 0;
                 totalDur += f.duration || 0;
-                totalCals += (f.distance || 0) * (this.userWeight || 70) * 1.036;
+                totalCals += window.gpxUtils.calculateCalories(f.distance, this.userWeight);
             });
             this.lifetimeStats.totalDistance = totalDist;
             this.lifetimeStats.totalDuration = totalDur;
@@ -134,7 +167,7 @@ document.addEventListener('alpine:init', () => {
                 groups[key].files.push(f);
                 groups[key].totalDistance += f.distance || 0;
                 groups[key].totalDuration += f.duration || 0;
-                groups[key].totalCalories += (f.distance || 0) * (this.userWeight || 70) * 1.036;
+                groups[key].totalCalories += window.gpxUtils.calculateCalories(f.distance, this.userWeight);
                 groups[key].runCount++;
             });
 
@@ -153,16 +186,16 @@ document.addEventListener('alpine:init', () => {
             this.groupedFiles = groupList;
         },
 
-        updateCityMetadata(filename, city) {
+        updateCityMetadata(id, city) {
             // Update in savedFiles
-            const file = this.savedFiles.find(f => f.filename === filename);
+            const file = this.savedFiles.find(f => f.id === id);
             if (file) {
                 file.city = city;
             }
 
             // Update in groupedFiles
             for (const group of this.groupedFiles) {
-                const groupFile = group.files.find(f => f.filename === filename);
+                const groupFile = group.files.find(f => f.id === id);
                 if (groupFile) {
                     groupFile.city = city;
                     break;
@@ -170,7 +203,7 @@ document.addEventListener('alpine:init', () => {
             }
 
             // Update activeGpx if it matches
-            if (this.activeGpx && this.activeGpx.filename === filename) {
+            if (this.activeGpx && this.activeGpx.id === id) {
                 this.activeGpx.city = city;
                 this.activeGpxStats.location = city;
             }

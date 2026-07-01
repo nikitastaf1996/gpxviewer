@@ -13,11 +13,9 @@ document.addEventListener('alpine:init', () => {
             this.map = L.map('map', {
                 fullscreenControl: true
             }).setView([0, 0], 2);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            L.tileLayer.offline('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(this.map);
-
-            window.map = this.map;
 
             window.addEventListener('tab-changed', (e) => {
                 if (e.detail.tab === 'analyze') {
@@ -36,7 +34,7 @@ document.addEventListener('alpine:init', () => {
                     if (Alpine.store('app').activeGpxStats.distance) {
                         const distKm = parseFloat(Alpine.store('app').activeGpxStats.distance);
                         const weight = Alpine.store('app').userWeight || 70;
-                        Alpine.store('app').activeGpxStats.calories = Math.round(distKm * weight * 1.036);
+                        Alpine.store('app').activeGpxStats.calories = window.gpxUtils.calculateCalories(distKm, weight);
                     }
                 }, 0);
             });
@@ -47,8 +45,19 @@ document.addEventListener('alpine:init', () => {
         },
 
         async displayGpx(metadata) {
-            const gpxData = await window.dbManager.get('files', metadata.filename);
-            if (!gpxData) return;
+            const gpxData = await window.dbManager.get('files', metadata.id);
+            if (!gpxData) {
+                // File missing (e.g., deleted from another tab). Reset stats so
+                // the UI doesn't show stale values from the previous run.
+                Alpine.store('app').activeGpxStats = {
+                    distance: null, duration: null, movingTime: null,
+                    pace: null, movingPace: null,
+                    elevationGain: null, elevationLoss: null,
+                    location: null, startTime: null, calories: null, customName: null
+                };
+                Alpine.store('app').toast('Run not found — it may have been deleted.');
+                return;
+            }
 
             if (this.currentTrack) {
                 this.map.removeLayer(this.currentTrack);
@@ -60,9 +69,9 @@ document.addEventListener('alpine:init', () => {
             this.currentTrack = new L.GPX(gpxData, {
                 async: true,
                 marker_options: {
-                    startIconUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-icon-start.png',
-                    endIconUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-icon-end.png',
-                    shadowUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-shadow.png'
+                    startIconUrl: './vendor/leaflet-gpx/pin-icon-start.png',
+                    endIconUrl: './vendor/leaflet-gpx/pin-icon-end.png',
+                    shadowUrl: './vendor/leaflet-gpx/pin-shadow.png'
                 }
             }).on('loaded', (e) => {
                 const gpx = e.target;
@@ -75,7 +84,7 @@ document.addEventListener('alpine:init', () => {
                 Alpine.store('app').activeGpxStats.duration = window.gpxUtils.formatDuration(gpx.get_total_time());
                 Alpine.store('app').activeGpxStats.movingTime = window.gpxUtils.formatDuration(gpx.get_moving_time());
                 Alpine.store('app').activeGpxStats.startTime = new Date(metadata.date).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                Alpine.store('app').activeGpxStats.calories = Math.round(distKm * weight * 1.036);
+                Alpine.store('app').activeGpxStats.calories = window.gpxUtils.calculateCalories(distKm, weight);
 
                 if (distKm > 0) {
                     const paceMinPerKm = (gpx.get_total_time() / 1000 / 60) / distKm;
@@ -102,7 +111,8 @@ document.addEventListener('alpine:init', () => {
 
         openFullscreen(type) {
             Alpine.store('app').activeChartType = type;
-            Alpine.store('app').zoomRange = { start: 0, end: Alpine.store('app').activeProcessedData.length - 1 };
+            const data = Alpine.store('app').activeProcessedData;
+            Alpine.store('app').zoomRange = { start: 0, end: data ? data.length - 1 : 0 };
             Alpine.store('app').isFullscreenAnalysisActive = true;
         },
 
@@ -114,10 +124,10 @@ document.addEventListener('alpine:init', () => {
             const activeGpx = Alpine.store('app').activeGpx;
             if (!activeGpx) return;
 
-            const metadata = await window.dbManager.get('metadata', activeGpx.filename);
+            const metadata = await window.dbManager.get('metadata', activeGpx.id);
             if (metadata) {
                 metadata.customName = newName;
-                await window.dbManager.set('metadata', activeGpx.filename, metadata);
+                await window.dbManager.set('metadata', activeGpx.id, metadata);
                 activeGpx.customName = newName;
                 Alpine.store('app').activeGpxStats.customName = newName;
                 await Alpine.store('app').loadSavedMetadata();
@@ -141,8 +151,8 @@ document.addEventListener('alpine:init', () => {
             }
             const ctx = canvas.getContext('2d');
             const eleData = data.map(d => d.ele);
-            const minEle = Math.min(...eleData);
-            const maxEle = Math.max(...eleData);
+            const minEle = eleData.reduce((a, b) => (b < a ? b : a), Infinity);
+            const maxEle = eleData.reduce((a, b) => (b > a ? b : a), -Infinity);
 
             this.charts.elevation = new Chart(ctx, {
                 type: 'line',
@@ -183,7 +193,7 @@ document.addEventListener('alpine:init', () => {
                     datasets: [
                         {
                             label: 'Pace',
-                            data: data.map(d => ({x: d.dist, y: d.smoothedPace > 0 && d.smoothedPace < 20 ? d.smoothedPace : null})),
+                            data: data.map(d => ({x: d.dist, y: window.gpxUtils.isValidPace(d.smoothedPace) ? d.smoothedPace : null})),
                             borderColor: '#ff6b6b',
                             backgroundColor: 'transparent',
                             borderWidth: 2.5,
@@ -192,7 +202,7 @@ document.addEventListener('alpine:init', () => {
                         },
                         {
                             label: 'GAP',
-                            data: data.map(d => ({x: d.dist, y: d.smoothedGap > 0 && d.smoothedGap < 20 ? d.smoothedGap : null})),
+                            data: data.map(d => ({x: d.dist, y: window.gpxUtils.isValidPace(d.smoothedGap) ? d.smoothedGap : null})),
                             borderColor: '#fab005',
                             backgroundColor: 'transparent',
                             borderDash: [4, 4],
@@ -235,7 +245,7 @@ document.addEventListener('alpine:init', () => {
                         },
                         {
                             label: 'Pace',
-                            data: data.map(d => ({x: d.dist, y: d.smoothedPace > 0 && d.smoothedPace < 20 ? d.smoothedPace : null})),
+                            data: data.map(d => ({x: d.dist, y: window.gpxUtils.isValidPace(d.smoothedPace) ? d.smoothedPace : null})),
                             borderColor: '#ff6b6b',
                             yAxisID: 'y-pace',
                             fill: false,
@@ -345,6 +355,18 @@ document.addEventListener('alpine:init', () => {
                     }
                 }
             });
+        },
+
+        // Reset isInitialized so a future x-if-wrapped remount re-inits cleanly.
+        destroy() {
+            try { Object.values(this.charts).forEach(c => c.destroy()); } catch (_) {}
+            this.charts = {};
+            if (this.map) {
+                try { this.map.remove(); } catch (_) {}
+                this.map = null;
+            }
+            this.currentTrack = null;
+            this.isInitialized = false;
         }
     }));
 });

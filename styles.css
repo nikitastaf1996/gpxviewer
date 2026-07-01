@@ -975,35 +975,17 @@ canvas {
     object-fit: cover;
     z-index: 1;
     pointer-events: none;
-    display: none;
+    display: block;
 }
 
-/* Default Fallback */
-.aura-video-400x400 { display: block; }
-
-/* Mobile Portrait */
-@media (max-width: 480px) and (min-height: 500px) {
-    .aura-video { display: none; }
-    .aura-video-400x600 { display: block; }
-}
-
-/* Landscape / Small Screen */
-@media (min-width: 481px) and (max-height: 500px) {
-    .aura-video { display: none; }
-    .aura-video-600x400 { display: block; }
-}
-
-/* Tablet / Desktop */
-@media (min-width: 768px) {
-    .aura-video { display: none; }
-    .aura-video-800x400 { display: block; }
-}
-
-/* Large Desktop */
-@media (min-width: 1200px) {
-    .aura-video { display: none; }
-    .aura-video-1000x500 { display: block; }
-}
+/* Legacy size-specific classes — kept as no-ops so nothing else that might
+   reference them breaks. With the new single-video design, .aura-video is
+   always visible and the source URL is swapped dynamically by pickAuraVideo(). */
+.aura-video-400x400,
+.aura-video-400x600,
+.aura-video-600x400,
+.aura-video-800x400,
+.aura-video-1000x500 { display: block; }
 
 /* Glassy Stat Cards inside Aura Container */
 .aura-container .stat-card, .aura-container .location-chip {
@@ -1028,4 +1010,83 @@ canvas {
     background: transparent;
     padding-top: 1rem;
     padding-bottom: 1rem;
+}
+
+/* Hide Alpine-controlled elements until Alpine is ready. */
+[x-cloak] { display: none !important; }
+
+/* ---- In-page modal & toast (replaces native alert/confirm) ---- */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+}
+
+.modal-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 1.5rem;
+    max-width: 420px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.modal-message {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.toast {
+    position: fixed;
+    bottom: calc(var(--nav-height) + 1rem);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text-main);
+    color: #fff;
+    padding: 0.75rem 1.25rem;
+    border-radius: var(--radius-md);
+    z-index: 1001;
+    max-width: 90vw;
+    box-shadow: var(--shadow-md);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+/* ---- Offline status badge in header ---- */
+.offline-badge {
+    display: inline-block;
+    margin-left: 0.75rem;
+    padding: 0.15rem 0.6rem;
+    background: #fab005;
+    color: #1a1a1a;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 999px;
+    vertical-align: middle;
 }

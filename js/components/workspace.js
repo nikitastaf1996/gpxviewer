@@ -83,7 +83,7 @@ document.addEventListener('alpine:init', () => {
             this.map = map;
             const rawMap = Alpine.raw(this.map);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(rawMap);
+            L.tileLayer.offline('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(rawMap);
 
             const points = Alpine.store('app').activePoints;
 
@@ -589,7 +589,7 @@ document.addEventListener('alpine:init', () => {
                 return [
                     {
                         label: 'Pace',
-                        data: data.map(d => ({x: d.dist, y: d.smoothedPace > 0 && d.smoothedPace < 20 ? d.smoothedPace : null})),
+                        data: data.map(d => ({x: d.dist, y: window.gpxUtils.isValidPace(d.smoothedPace) ? d.smoothedPace : null})),
                         borderColor: '#ff6b6b',
                         pointRadius: 0,
                         borderWidth: 2.5,
@@ -597,7 +597,7 @@ document.addEventListener('alpine:init', () => {
                     },
                     {
                         label: 'GAP',
-                        data: data.map(d => ({x: d.dist, y: d.smoothedGap > 0 && d.smoothedGap < 20 ? d.smoothedGap : null})),
+                        data: data.map(d => ({x: d.dist, y: window.gpxUtils.isValidPace(d.smoothedGap) ? d.smoothedGap : null})),
                         borderColor: '#fab005',
                         borderDash: [4, 4],
                         pointRadius: 0,
@@ -617,7 +617,7 @@ document.addEventListener('alpine:init', () => {
                     },
                     {
                         label: 'Pace',
-                        data: data.map(d => ({x: d.dist, y: d.smoothedPace > 0 && d.smoothedPace < 20 ? d.smoothedPace : null})),
+                        data: data.map(d => ({x: d.dist, y: window.gpxUtils.isValidPace(d.smoothedPace) ? d.smoothedPace : null})),
                         borderColor: '#ff6b6b',
                         yAxisID: 'y-pace',
                         pointRadius: 0,
@@ -689,11 +689,11 @@ document.addEventListener('alpine:init', () => {
             let paceSum = 0, gapSum = 0, paceCount = 0;
             let eleMin = Infinity, eleMax = -Infinity;
             for (const d of slice) {
-                if (d.smoothedPace > 0 && d.smoothedPace < 20) {
+                if (window.gpxUtils.isValidPace(d.smoothedPace)) {
                     paceSum += d.smoothedPace;
                     paceCount++;
                 }
-                if (d.smoothedGap > 0 && d.smoothedGap < 20) {
+                if (window.gpxUtils.isValidPace(d.smoothedGap)) {
                     gapSum += d.smoothedGap;
                 }
                 if (d.ele != null) {

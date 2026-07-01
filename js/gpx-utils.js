@@ -1,4 +1,20 @@
 window.gpxUtils = {
+    // Approximate calories burned per km per kg of body weight.
+    // Derived from the standard running METs approximation.
+    CALORIES_PER_KM_PER_KG: 1.036,
+
+    // Paces above this value (min/km) are treated as GPS noise — e.g., the
+    // runner stopped, walked, or signal was lost. They are excluded from
+    // charted pace/GAP series and from pace averages.
+    MAX_VALID_PACE_MIN_PER_KM: 20,
+
+    calculateCalories(distKm, weightKg) {
+        return Math.round((distKm || 0) * (weightKg || 70) * this.CALORIES_PER_KM_PER_KG);
+    },
+
+    isValidPace(paceMinPerKm) {
+        return paceMinPerKm > 0 && paceMinPerKm < this.MAX_VALID_PACE_MIN_PER_KM;
+    },
     calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371e3;
         const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;

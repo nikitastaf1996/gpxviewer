@@ -24,9 +24,21 @@ document.addEventListener('alpine:init', () => {
                     const filename = gpxFiles[i];
                     const gpxData = await zip.files[filename].async('string');
                     const metadata = window.gpxUtils.parseGpxMetadata(gpxData);
+                    if (!metadata) {
+                        // Skip non-GPX / empty / unparseable entries instead of
+                        // leaving orphan file blobs in IndexedDB.
+                        console.warn('Skipping unparseable GPX entry:', filename);
+                        this.importProgress = Math.round(((i + 1) / totalFiles) * 100);
+                        continue;
+                    }
+                    const baseName = filename.split('/').pop();
+                    const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : generateUuidFallback();
+                    metadata.filename = baseName;
+                    metadata.id = id;
 
                     tracks.push({
-                        name: filename.split('/').pop(), // Use just the filename without path
+                        id,
+                        name: baseName,
                         data: gpxData,
                         metadata: metadata
                     });
@@ -38,11 +50,13 @@ document.addEventListener('alpine:init', () => {
                     await window.dbManager.saveGpxBulk(tracks);
                     await Alpine.store('app').loadSavedMetadata();
                     window.geocoder.wakeUp();
-                    this.displayGpx({ filename: tracks[0].name, ...tracks[0].metadata });
+                    this.displayGpx({ id: tracks[0].id, ...tracks[0].metadata });
+                } else {
+                    Alpine.store('app').toast('No valid GPX files found in ZIP.');
                 }
             } catch (error) {
                 console.error('ZIP import failed:', error);
-                alert('Failed to import ZIP file.');
+                Alpine.store('app').toast('Failed to import ZIP file.');
             } finally {
                 setTimeout(() => {
                     this.isImporting = false;
@@ -59,20 +73,27 @@ document.addEventListener('alpine:init', () => {
             reader.onload = async (e) => {
                 const gpxData = e.target.result;
                 const metadata = window.gpxUtils.parseGpxMetadata(gpxData);
+                if (!metadata) {
+                    Alpine.store('app').toast('Could not parse GPX file.');
+                    return;
+                }
+                const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : generateUuidFallback();
+                metadata.filename = file.name;
+                metadata.id = id;
 
-                await window.dbManager.saveGpxBulk([{ name: file.name, data: gpxData, metadata }]);
+                await window.dbManager.saveGpxBulk([{ id, name: file.name, data: gpxData, metadata }]);
                 await Alpine.store('app').loadSavedMetadata();
                 window.geocoder.wakeUp();
-                this.displayGpx({ filename: file.name, ...metadata });
+                this.displayGpx({ id, ...metadata });
             };
             reader.readAsText(file);
         },
 
-        async deleteGpx(name) {
-            await window.dbManager.delete('files', name);
-            await window.dbManager.delete('metadata', name);
+        async deleteGpx(id) {
+            await window.dbManager.delete('files', id);
+            await window.dbManager.delete('metadata', id);
 
-            if (Alpine.store('app').activeGpx && Alpine.store('app').activeGpx.filename === name) {
+            if (Alpine.store('app').activeGpx && Alpine.store('app').activeGpx.id === id) {
                 Alpine.store('app').activeGpx = null;
             }
             await Alpine.store('app').loadSavedMetadata();
@@ -92,3 +113,12 @@ document.addEventListener('alpine:init', () => {
         }
     }));
 });
+
+// RFC4122 v4 fallback for environments without crypto.randomUUID.
+function generateUuidFallback() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}

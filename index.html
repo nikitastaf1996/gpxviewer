@@ -6,17 +6,18 @@
     <meta name="theme-color" content="#333333">
     <title>Simple GPX Viewer</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link href='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css' rel='stylesheet' />
+    <link rel="stylesheet" href="./vendor/leaflet/leaflet.css" />
+    <link href='./vendor/leaflet-fullscreen/leaflet.fullscreen.css' rel='stylesheet' />
     <link rel="stylesheet" href="./styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="./vendor/jszip/jszip.min.js"></script>
+    <script defer src="./vendor/alpine/collapse.min.js"></script>
+    <script defer src="./vendor/alpine/cdn.min.js"></script>
 </head>
 <body x-data>
 
 <header>
     <h1>GPX Viewer for Runners</h1>
+    <span class="offline-badge" x-cloak x-show="!$store.app.isOnline" x-transition>Offline</span>
 </header>
 
 <div id="tab-analyze" class="tab-content" x-data="analyze" x-show="$store.app.activeTab === 'analyze'" :class="{ 'active': $store.app.activeTab === 'analyze' }">
@@ -146,7 +147,7 @@
                     <span class="toggle-icon" x-text="expanded ? '−' : '+'"></span>
                 </div>
                 <div x-show="expanded" x-collapse>
-                    <template x-for="file in group.files" :key="file.filename">
+                    <template x-for="file in group.files" :key="file.id">
                         <div class="run-card" x-on:click="displayGpx(file)">
                             <div class="run-icon-circle">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 8-4 4 4 4"/><path d="M6 12h8"/><rect width="20" height="16" x="2" y="4" rx="2"/></svg>
@@ -164,7 +165,7 @@
                                     <span x-text="window.gpxUtils.formatPace(file.avgPace)"></span>
                                 </div>
                             </div>
-                            <button class="delete-btn-ghost" x-on:click.stop="deleteGpx(file.filename)" title="Delete run">
+                            <button class="delete-btn-ghost" x-on:click.stop="deleteGpx(file.id)" title="Delete run">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
                             </button>
                         </div>
@@ -201,20 +202,9 @@
     <div id="trends-content" x-show="$store.app.savedFiles.length > 0">
         <!-- New View with Liquid Aura -->
         <div class="aura-container" x-show="$store.app.showLiquidAura">
-            <video autoplay loop muted playsinline class="aura-video aura-video-400x400">
-                <source src="assets/videos/aura_400x400.mp4" type="video/mp4">
-            </video>
-            <video autoplay loop muted playsinline class="aura-video aura-video-600x400">
-                <source src="assets/videos/aura_600x400.mp4" type="video/mp4">
-            </video>
-            <video autoplay loop muted playsinline class="aura-video aura-video-800x400">
-                <source src="assets/videos/aura_800x400.mp4" type="video/mp4">
-            </video>
-            <video autoplay loop muted playsinline class="aura-video aura-video-400x600">
-                <source src="assets/videos/aura_400x600.mp4" type="video/mp4">
-            </video>
-            <video autoplay loop muted playsinline class="aura-video aura-video-1000x500">
-                <source src="assets/videos/aura_1000x500.mp4" type="video/mp4">
+            <video autoplay loop muted playsinline class="aura-video" id="aura-video"
+                   x-init="$nextTick(() => { $el._component = $root._x_dataStack ? $root._x_dataStack[0] : null; pickAuraVideo(); })">
+                <source id="aura-video-source" src="assets/videos/aura_1000x500.mp4" type="video/mp4">
             </video>
 
             <div class="lifetime-stats">
@@ -403,7 +393,7 @@
         </div>
         <h3>Danger Zone</h3>
         <div class="setting-item">
-            <button x-on:click="if(confirm('Are you sure you want to clear your entire library?')) clearLibrary()" class="delete-btn" style="width: 100%;">Clear Library</button>
+            <button x-on:click="$store.app.confirm({ title: 'Clear Library', message: 'Are you sure you want to clear your entire library?', onConfirm: () => clearLibrary() })" class="delete-btn" style="width: 100%;">Clear Library</button>
         </div>
     </div>
 </div>
@@ -482,12 +472,28 @@
     </button>
 </nav>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js'></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/2.1.0/gpx.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- In-page modal + toast (replaces native alert/confirm). Driven by $store.app.confirm() and $store.app.toast(). -->
+<div id="modal-root" x-data="{ open: false, title: '', message: '', onConfirm: null }" x-show="open" x-cloak @keydown.escape.window="open = false" class="modal-overlay">
+    <div class="modal-card" role="dialog" :aria-label="title">
+        <h3 x-text="title" class="modal-title"></h3>
+        <p x-text="message" class="modal-message"></p>
+        <div class="modal-actions">
+            <button @click="open = false" class="btn-secondary">Cancel</button>
+            <button @click="if (onConfirm) onConfirm(); open = false;" class="delete-btn">Confirm</button>
+        </div>
+    </div>
+</div>
+<div id="toast-root" x-data="{ visible: false, message: '' }" x-show="visible" x-cloak class="toast" x-transition.duration.300ms>
+    <span x-text="message"></span>
+</div>
+
+<script src="./vendor/leaflet/leaflet.js"></script>
+<script src='./vendor/leaflet-fullscreen/Leaflet.fullscreen.min.js'></script>
+<script src="./vendor/leaflet-gpx/gpx.min.js"></script>
+<script src="./vendor/chartjs/chart.umd.min.js"></script>
 <script src="./js/db.js"></script>
 <script src="./js/gpx-utils.js"></script>
+<script src="./js/offline-tiles.js"></script>
 <script src="./js/geocoder.js"></script>
 <script src="./js/store.js"></script>
 <script src="./js/components/analyze.js"></script>

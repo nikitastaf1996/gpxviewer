@@ -814,6 +814,16 @@ canvas {
     height: 100%;
 }
 
+/* Main chart: touch-action: none so Chart.js's onHover fires reliably while a
+   finger drags across the chart on mobile. Without this the browser intercepts
+   the touch for page scrolling and the stats / map pin never update. */
+#workspace-chart-main {
+    touch-action: none;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
 /* Pointer-friendlier hit area: the container itself acts as a transparent
    "gutter" so a finger landing just outside the canvas still registers on the
    nearest handle via the extended hit radius in workspace.js (HIT_RADIUS_PX). */

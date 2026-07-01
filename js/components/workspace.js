@@ -53,12 +53,15 @@ document.addEventListener('alpine:init', () => {
 
             this.$watch('$store.app.hoveredTrackpoint', (index) => {
                 if (index !== null) {
-                    this.updateHoverStats(index);
+                    // updateHoverStats is wrapped in try/catch so a stats
+                    // formatting error never blocks the map marker / chart
+                    // redraw from running.
+                    try { this.updateHoverStats(index); } catch (e) { console.warn('updateHoverStats:', e); }
                     this.updateMapMarker(index);
                     if (this.mainChart) Alpine.raw(this.mainChart).draw();
                 } else {
                     // Hover ended -> fall back to active segment averages (Task 1.2)
-                    this.updateHoverStatsToSegmentAverages();
+                    try { this.updateHoverStatsToSegmentAverages(); } catch (e) { console.warn('updateHoverStatsToSegmentAverages:', e); }
                     if (this.mainChart) Alpine.raw(this.mainChart).draw();
                 }
             });
@@ -145,6 +148,12 @@ document.addEventListener('alpine:init', () => {
             const slicedData = data.slice(start, end + 1);
             const datasets = this.getDatasetsForType(slicedData, type);
 
+            // Set explicit x-axis min/max from the sliced data so the line
+            // stretches edge-to-edge (no empty padding to 'nice' round
+            // numbers) and the axis doesn't rescale/jump on scrubber updates.
+            const xMin = slicedData.length > 0 ? slicedData[0].dist : 0;
+            const xMax = slicedData.length > 0 ? slicedData[slicedData.length - 1].dist : 0;
+
             this.mainChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -158,6 +167,8 @@ document.addEventListener('alpine:init', () => {
                         x: {
                             type: 'linear',
                             display: true,
+                            min: xMin,
+                            max: xMax,
                             ticks: {
                                 callback: (value) => value.toFixed(1) + ' km'
                             }
@@ -209,6 +220,9 @@ document.addEventListener('alpine:init', () => {
             // Task 1.2: When the cursor leaves the main chart, reset the stats
             // banner back to the active segment averages (hover fallback).
             const mainCanvas = document.getElementById('workspace-chart-main');
+            // touch-action: none lets Chart.js receive touch-drag events on
+            // mobile so onHover fires while a finger drags across the chart.
+            mainCanvas.style.touchAction = 'none';
             mainCanvas.addEventListener('mouseleave', () => {
                 Alpine.store('app').hoveredTrackpoint = null;
             });
@@ -497,15 +511,16 @@ document.addEventListener('alpine:init', () => {
             Alpine.store('app').zoomRange = { start: pending.start, end: pending.end };
             this._lastFlushedZoom = { start: pending.start, end: pending.end };
 
-            // Task 2.2: during active dragging, disable full-fidelity rendering
-            // (animations / heavy recomputation). animation:false is already set
-            // globally; passing 'none' to update() also skips layout transitions.
-            this.updateMainChart(!this._draggingActive);
+            // Always update the main chart in 'none' mode (no animation) for
+            // instant, jump-free redraws. animation:false is set globally but
+            // update('none') also skips layout transitions which would
+            // otherwise cause the chart to visibly rescale on every scrub.
+            this.updateMainChart();
             this.updateHighlightedPolyline(pending.start, pending.end);
             if (this.sliderChart) Alpine.raw(this.sliderChart).draw();
         },
 
-        updateMainChart(animate) {
+        updateMainChart() {
             if (!this.mainChart) return;
             const {start, end} = Alpine.store('app').zoomRange;
             const data = Alpine.store('app').activeProcessedData;
@@ -522,11 +537,18 @@ document.addEventListener('alpine:init', () => {
             // Alpine-proxied objects leak into Chart.js's data tree.
             const chart = Alpine.raw(this.mainChart);
             chart.data.datasets = JSON.parse(JSON.stringify(datasets));
-            if (animate === false) {
-                chart.update('none');
-            } else {
-                chart.update();
+
+            // Set explicit x-axis min/max from the sliced data so the line
+            // fills the full chart width (no empty padding to 'nice' round
+            // numbers) and the axis doesn't rescale/jump between updates.
+            if (slicedData.length > 0) {
+                chart.options.scales.x.min = slicedData[0].dist;
+                chart.options.scales.x.max = slicedData[slicedData.length - 1].dist;
             }
+
+            // 'none' = no animation, no layout transition. Keeps scrubbing
+            // smooth and prevents the visual 'jump' from axis rescaling.
+            chart.update('none');
         },
 
         // --- Task 3.2: sync highlighted polyline to scrubber bounds ---
@@ -625,9 +647,16 @@ document.addEventListener('alpine:init', () => {
             const d = data[index];
             if (!d) return;
 
+            // IMPORTANT: the global is window.gpxUtils (camelCase), as defined
+            // in js/gpx-utils.js. The previous snake_case 'gpx_utils' was
+            // undefined and threw a TypeError here, which silently blocked
+            // elevation / pace / GAP from updating AND blocked the map marker
+            // from moving (updateMapMarker runs after this in the watcher).
+            const fmt = window.gpxUtils ? window.gpxUtils.formatPace.bind(window.gpxUtils) : (v) => v.toFixed(2);
+
             this.hoverStats.distance = d.dist.toFixed(2) + ' km';
-            this.hoverStats.pace = window.gpx_utils.formatPace(d.smoothedPace);
-            this.hoverStats.gap = window.gpx_utils.formatPace(d.smoothedGap);
+            this.hoverStats.pace = fmt(d.smoothedPace);
+            this.hoverStats.gap = fmt(d.smoothedGap);
 
             // Calculate grade (kept for completeness / potential future use).
             let grade = 0;
@@ -674,8 +703,10 @@ document.addEventListener('alpine:init', () => {
             }
             const avgPace = paceCount > 0 ? paceSum / paceCount : 0;
             const avgGap = paceCount > 0 ? gapSum / paceCount : 0;
-            this.hoverStats.pace = window.gpx_utils.formatPace(avgPace);
-            this.hoverStats.gap = window.gpx_utils.formatPace(avgGap);
+            // window.gpxUtils (camelCase) — see note in updateHoverStats().
+            const fmt = window.gpxUtils ? window.gpxUtils.formatPace.bind(window.gpxUtils) : (v) => v.toFixed(2);
+            this.hoverStats.pace = fmt(avgPace);
+            this.hoverStats.gap = fmt(avgGap);
 
             // Show elevation range (min–max) of the active segment.
             if (eleMin !== Infinity) {

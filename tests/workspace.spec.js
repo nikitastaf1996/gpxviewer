@@ -176,4 +176,100 @@ test.describe('Workspace Analysis Optimizations', () => {
     });
     expect(touchAction).toBe('none');
   });
+
+  test('Fix: main chart has touch-action:none for mobile hover support', async ({ page }) => {
+    await page.click('button[title="Expand Elevation"]');
+    await expect(page.locator('#fullscreen-analysis-workspace')).toBeVisible();
+    const touchAction = await page.evaluate(() => {
+      const el = document.getElementById('workspace-chart-main');
+      return window.getComputedStyle(el).touchAction;
+    });
+    expect(touchAction).toBe('none');
+  });
+
+  test('Fix: stats banner ELE updates on hover (no longer stuck at 0 m)', async ({ page }) => {
+    await page.click('button[title="Expand Elevation"]');
+    await expect(page.locator('#fullscreen-analysis-workspace')).toBeVisible();
+    await page.waitForTimeout(500);
+
+    // Before hover: fallback segment averages should show a non-zero elevation
+    // range (e.g. "220-270 m"), NOT the initial "0 m".
+    const eleBefore = await page.locator('#workspace-stats-banner .w-stat:has-text("Ele") .w-stat-value').textContent();
+    expect(eleBefore).not.toBe('0 m');
+    expect(eleBefore).toMatch(/m$/);
+
+    // Simulate a hover at the midpoint of the main chart.
+    const mainChart = page.locator('#workspace-chart-main');
+    const box = await mainChart.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.waitForTimeout(200);
+
+    // ELE should now show a real elevation value (not "0 m").
+    const eleAfter = await page.locator('#workspace-stats-banner .w-stat:has-text("Ele") .w-stat-value').textContent();
+    expect(eleAfter).not.toBe('0 m');
+    expect(eleAfter).toMatch(/m$/);
+  });
+
+  test('Fix: map marker moves when hovering over the main chart', async ({ page }) => {
+    await page.click('button[title="Expand Elevation"]');
+    await expect(page.locator('#fullscreen-analysis-workspace')).toBeVisible();
+    await page.waitForTimeout(500);
+
+    const posBefore = await page.evaluate(() => {
+      const cmp = document.getElementById('fullscreen-analysis-workspace')._x_dataStack[0];
+      const ll = Alpine.raw(cmp.marker).getLatLng();
+      return { lat: ll.lat, lng: ll.lng };
+    });
+
+    // Hover at 80% across the chart — should move the marker significantly.
+    const mainChart = page.locator('#workspace-chart-main');
+    const box = await mainChart.boundingBox();
+    await page.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2);
+    await page.waitForTimeout(200);
+
+    const posAfter = await page.evaluate(() => {
+      const cmp = document.getElementById('fullscreen-analysis-workspace')._x_dataStack[0];
+      const ll = Alpine.raw(cmp.marker).getLatLng();
+      return { lat: ll.lat, lng: ll.lng };
+    });
+
+    // Marker should have moved (lat or lng changed).
+    const moved = Math.abs(posAfter.lat - posBefore.lat) > 0.0001 ||
+                  Math.abs(posAfter.lng - posBefore.lng) > 0.0001;
+    expect(moved).toBeTruthy();
+  });
+
+  test('Fix: main chart x-axis fills full data width (no empty padding)', async ({ page }) => {
+    await page.click('button[title="Expand Elevation"]');
+    await expect(page.locator('#fullscreen-analysis-workspace')).toBeVisible();
+    await page.waitForTimeout(500);
+
+    const r = await page.evaluate(() => {
+      const cmp = document.getElementById('fullscreen-analysis-workspace')._x_dataStack[0];
+      const chart = Alpine.raw(cmp.mainChart);
+      const data = chart.data.datasets[0].data;
+      const xMin = chart.options.scales.x.min;
+      const xMax = chart.options.scales.x.max;
+      const dataMin = data[0].x;
+      const dataMax = data[data.length - 1].x;
+      // The leftmost data pixel and rightmost data pixel should be at (or very
+      // near) the chart area edges, confirming the line fills the full width.
+      const leftPixel = chart.scales.x.getPixelForValue(dataMin);
+      const rightPixel = chart.scales.x.getPixelForValue(dataMax);
+      return {
+        xMin, xMax, dataMin, dataMax,
+        chartLeft: chart.chartArea.left,
+        chartRight: chart.chartArea.right,
+        leftPixel, rightPixel,
+        leftGap: leftPixel - chart.chartArea.left,
+        rightGap: chart.chartArea.right - rightPixel,
+      };
+    });
+    // Explicit min/max match the data bounds exactly.
+    expect(r.xMin).toBeCloseTo(r.dataMin, 5);
+    expect(r.xMax).toBeCloseTo(r.dataMax, 5);
+    // The data line fills the full chart width (gaps < 2px).
+    expect(r.leftGap).toBeLessThan(2);
+    expect(r.rightGap).toBeLessThan(2);
+  });
 });

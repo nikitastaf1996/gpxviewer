@@ -135,6 +135,90 @@ window.dbManager = {
             transaction.onerror = () => reject(transaction.error);
         });
     },
+
+    /**
+     * One-time migration: convert filename-keyed entries to UUID-keyed entries.
+     * Each run is stored with `id` (UUID) as the primary key in both `files`
+     * and `metadata` stores, with `filename` kept as a property inside the
+     * metadata value. Existing entries whose key looks like a filename are
+     * rewritten under a fresh UUID and the old key is deleted.
+     *
+     * Safe to call on every init; the `uuidMigrationDone` flag in the settings
+     * store prevents re-running after the first successful pass.
+     */
+    async migrateToUuidKeys() {
+        const done = await this.get('settings', 'uuidMigrationDone');
+        if (done) return;
+
+        console.log('Migrating runs from filename keys to UUID keys...');
+
+        const allMeta = await this.getAll('metadata');
+        const allFiles = await this.getAll('files');
+
+        // A key is "old-style" (filename) if it does NOT look like a UUID.
+        // UUIDs match /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.
+        const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const oldKeys = Object.keys(allMeta).filter(k => !uuidRe.test(k));
+
+        if (oldKeys.length === 0) {
+            await this.set('settings', 'uuidMigrationDone', true);
+            console.log('UUID migration: nothing to do.');
+            return;
+        }
+
+        const transaction = this.db.transaction(['files', 'metadata', 'settings'], 'readwrite');
+        const fileStore = transaction.objectStore('files');
+        const metaStore = transaction.objectStore('metadata');
+
+        for (const oldKey of oldKeys) {
+            try {
+                const meta = allMeta[oldKey];
+                const file = allFiles[oldKey];
+                const newId = (crypto && crypto.randomUUID)
+                    ? crypto.randomUUID()
+                    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                        const r = Math.random() * 16 | 0;
+                        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                        return v.toString(16);
+                    });
+
+                if (meta) {
+                    // Stamp id and filename onto the metadata value so callers
+                    // can find both. The `filename` field is the original name.
+                    meta.id = newId;
+                    if (!meta.filename) meta.filename = oldKey;
+                    metaStore.put(meta, newId);
+                    metaStore.delete(oldKey);
+                }
+                if (file !== undefined) {
+                    fileStore.put(file, newId);
+                    fileStore.delete(oldKey);
+                }
+            } catch (err) {
+                // One corrupt record should not block the rest.
+                console.error('UUID migration: failed for', oldKey, err);
+            }
+        }
+
+        transaction.objectStore('settings').put(true, 'uuidMigrationDone');
+
+        return new Promise((resolve, reject) => {
+            transaction.oncomplete = () => {
+                console.log(`UUID migration: ${oldKeys.length} run(s) migrated.`);
+                resolve();
+            };
+            transaction.onerror = () => reject(transaction.error);
+        });
+    },
+
+    /**
+     * Save a batch of tracks. Each track must have:
+     *   - id: UUID (primary key)
+     *   - data: raw GPX XML string (stored in `files`)
+     *   - metadata: object including `id` and `filename` (stored in `metadata`)
+     * Multiple tracks with the same filename are allowed because the key is
+     * the UUID, which is unique by construction.
+     */
     async saveGpxBulk(tracks) {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction(['files', 'metadata'], 'readwrite');
@@ -142,9 +226,17 @@ window.dbManager = {
             const metaStore = transaction.objectStore('metadata');
 
             tracks.forEach(track => {
-                fileStore.put(track.data, track.name);
+                const id = track.id;
+                if (!id) {
+                    console.error('saveGpxBulk: track missing id, skipping', track);
+                    return;
+                }
+                fileStore.put(track.data, id);
                 if (track.metadata) {
-                    metaStore.put(track.metadata, track.name);
+                    // Ensure the metadata record carries its own id so callers
+                    // can read it back without inspecting the key.
+                    track.metadata.id = id;
+                    metaStore.put(track.metadata, id);
                 }
             });
 

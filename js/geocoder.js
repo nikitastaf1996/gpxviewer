@@ -15,6 +15,12 @@ window.geocoder = {
         }
         this.isProcessing = true;
         console.log('Background geocoder started');
+        // Wake the loop immediately when connectivity returns after an
+        // offline period — no need to wait for the 30s sleep to elapse.
+        if (typeof window !== 'undefined' && !this._onlineBound) {
+            window.addEventListener('online', () => this.wakeUp());
+            this._onlineBound = true;
+        }
         this.processLoop();
     },
 
@@ -34,10 +40,18 @@ window.geocoder = {
     async processLoop() {
         while (this.isProcessing) {
             try {
+                // Skip the whole loop while offline — no point hammering
+                // a network that's down. Wake up when connectivity returns
+                // (see start() wiring an 'online' listener below).
+                if (typeof navigator !== 'undefined' && !navigator.onLine) {
+                    await this.sleep(30000);
+                    continue;
+                }
+
                 const allMetadata = await window.dbManager.getAll('metadata');
                 const pendingEntries = Object.entries(allMetadata)
-                    .filter(([name, meta]) => meta.city === undefined || meta.city === null)
-                    .map(([name, meta]) => ({ name, ...meta }));
+                    .filter(([id, meta]) => meta.city === undefined || meta.city === null)
+                    .map(([id, meta]) => ({ id, ...meta }));
 
                 if (pendingEntries.length === 0) {
                     // Nothing to do, wait 60 seconds before checking again, or until woken up
@@ -49,22 +63,28 @@ window.geocoder = {
                     if (!this.isProcessing) break;
 
                     // Double check if it still needs geocoding (another tab might have finished it)
-                    const currentMeta = await window.dbManager.get('metadata', item.name);
+                    const currentMeta = await window.dbManager.get('metadata', item.id);
                     if (!currentMeta || (currentMeta.city !== undefined && currentMeta.city !== null)) {
                         continue;
                     }
 
-                    console.log(`Geocoding ${item.name}...`);
+                    // If we lost connectivity mid-loop, pause and resume later.
+                    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+                        await this.sleep(30000);
+                        break;
+                    }
+
+                    console.log(`Geocoding ${item.filename || item.id}...`);
                     const preferredEntity = window.Alpine && Alpine.store('app') ? Alpine.store('app').geocodingEntity : 'city';
                     const cityName = await window.gpxUtils.fetchCityName(item.lat, item.lon, preferredEntity);
 
                     // Update record
                     currentMeta.city = cityName || '';
-                    await window.dbManager.set('metadata', item.name, currentMeta);
+                    await window.dbManager.set('metadata', item.id, currentMeta);
 
                     // Refresh Alpine store if available
                     if (window.Alpine && Alpine.store('app')) {
-                        Alpine.store('app').updateCityMetadata(item.name, currentMeta.city);
+                        Alpine.store('app').updateCityMetadata(item.id, currentMeta.city);
                     }
 
                     // Respect rate limits

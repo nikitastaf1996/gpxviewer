@@ -33,6 +33,18 @@ document.addEventListener('alpine:init', () => {
             if (this.isInitialized) return;
             this.isInitialized = true;
 
+            // Pick the right aura video on resize (debounced) — only swap the
+            // <source> when the picked URL actually changes, so playback isn't
+            // restarted on every resize event.
+            this._auraResizeTimer = null;
+            this._currentAuraSrc = null;
+            const onResize = () => {
+                clearTimeout(this._auraResizeTimer);
+                this._auraResizeTimer = setTimeout(() => this.pickAuraVideo(), 200);
+            };
+            window.addEventListener('resize', onResize);
+            this._auraResizeHandler = onResize;
+
             this.$watch('$store.app.groupedFiles', (newValue, oldValue) => {
                 if (Alpine.store('app').activeTab === 'trends') {
                     // Only update chart if the number of files or total distance changed
@@ -73,6 +85,56 @@ document.addEventListener('alpine:init', () => {
                     setTimeout(() => this.refreshAll(), 100);
                 }
             });
+        },
+
+        /**
+         * Choose the best aura video URL for the current viewport and swap the
+         * single `<source>` element if it changed. The five source videos are
+         * sized to match common viewport shapes:
+         *
+         *   aura_400x400.mp4 — small square / small portrait
+         *   aura_400x600.mp4 — tall portrait (height > width)
+         *   aura_600x400.mp4 — small landscape
+         *   aura_800x400.mp4 — medium landscape
+         *   aura_1000x500.mp4 — large landscape (default)
+         *
+         * Only one video element exists at a time (was five). This saves the
+         * bandwidth and decode cost of loading all five simultaneously.
+         */
+        pickAuraVideo() {
+            const video = document.getElementById('aura-video');
+            const source = document.getElementById('aura-video-source');
+            if (!video || !source) return;
+
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            const portrait = h > w;
+
+            let url;
+            if (portrait && h >= 700) {
+                url = 'assets/videos/aura_400x600.mp4';
+            } else if (portrait) {
+                url = 'assets/videos/aura_400x400.mp4';
+            } else if (w <= 600) {
+                url = 'assets/videos/aura_600x400.mp4';
+            } else if (w <= 900) {
+                url = 'assets/videos/aura_800x400.mp4';
+            } else {
+                url = 'assets/videos/aura_1000x500.mp4';
+            }
+
+            if (this._currentAuraSrc === url) return;
+            this._currentAuraSrc = url;
+
+            // Preserve playback position across the swap when possible.
+            const wasPlaying = !video.paused;
+            const t = video.currentTime || 0;
+            source.src = url;
+            video.load();
+            try { video.currentTime = t; } catch (_) {}
+            if (wasPlaying) {
+                video.play().catch(() => {});
+            }
         },
 
         playAuraVideo() {
@@ -229,7 +291,7 @@ document.addEventListener('alpine:init', () => {
                     case 'distance': return f.distance;
                     case 'duration': return f.duration / (1000 * 60); // minutes
                     case 'pace': return f.avgPace;
-                    case 'calories': return f.distance * (Alpine.store('app').userWeight || 70) * 1.036;
+                    case 'calories': return window.gpxUtils.calculateCalories(f.distance, Alpine.store('app').userWeight);
                     default: return 0;
                 }
             });
@@ -291,6 +353,21 @@ document.addEventListener('alpine:init', () => {
             const hours = Math.floor(ms / (1000 * 60 * 60));
             const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
             return `${hours}h ${minutes}m`;
+        },
+
+        // Reset isInitialized so a future x-if-wrapped remount re-inits cleanly.
+        destroy() {
+            try { if (this.globalChart) this.globalChart.destroy(); } catch (_) {}
+            this.globalChart = null;
+            try { Object.values(this.monthlyCharts).forEach(c => c.destroy()); } catch (_) {}
+            this.monthlyCharts = {};
+            this.pauseAuraVideo();
+            if (this._auraResizeHandler) {
+                window.removeEventListener('resize', this._auraResizeHandler);
+                this._auraResizeHandler = null;
+            }
+            clearTimeout(this._auraResizeTimer);
+            this.isInitialized = false;
         }
     }));
 });

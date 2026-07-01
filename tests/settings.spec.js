@@ -48,8 +48,11 @@ test.describe('Settings Tab', () => {
     // Go to settings and clear library
     await page.click('#bottom-nav button:has-text("Settings")');
 
-    page.on('dialog', dialog => dialog.accept());
+    // Native confirm() was replaced by an in-page modal. Click the button,
+    // then click the modal's Confirm action.
     await page.click('button:has-text("Clear Library")');
+    await expect(page.locator('#modal-root')).toBeVisible();
+    await page.click('#modal-root .modal-actions .delete-btn');
 
     // Check if library is empty
     await page.click('#bottom-nav button:has-text("Library")');

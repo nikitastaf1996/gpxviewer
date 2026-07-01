@@ -4,10 +4,13 @@ document.addEventListener('alpine:init', () => {
         mainChart: null,
         sliderChart: null,
         marker: null,
-        polyline: null,
+        // Dual polylines for Task 3: muted background + bold highlighted foreground
+        backgroundPolyline: null,
+        highlightedPolyline: null,
         hoverStats: {
             distance: '0.00 km',
             pace: '0:00',
+            gap: '0:00',
             grade: '0%',
             elevation: '0 m'
         },
@@ -17,6 +20,17 @@ document.addEventListener('alpine:init', () => {
         resizeObserver: null,
         isDragging: false,
         dragType: null, // 'pan', 'start', 'end'
+        dragOffset: 0,
+
+        // --- Task 2: throttling state for scrubber -> main chart updates ---
+        // Pending zoom range waiting to be flushed on the next animation frame.
+        _pendingZoomRange: null,
+        // Non-null when an rAF callback is scheduled.
+        _rafId: null,
+        // The last zoom range we actually flushed, used to skip no-op updates.
+        _lastFlushedZoom: null,
+        // True while a drag is in progress; disables full-fidelity rendering.
+        _draggingActive: false,
 
         init() {
             // Alpine calls this on load, but we want to init only when workspace is opened
@@ -30,7 +44,9 @@ document.addEventListener('alpine:init', () => {
                 this.initWorkspaceCharts();
                 this.initResizeObserver();
                 if (Alpine.store('app').activeProcessedData) {
-                    this.updateHoverStats(0);
+                    // Show segment averages (full range) instead of point-0 values
+                    // as the initial fallback display per Task 1.2.
+                    this.updateHoverStatsToSegmentAverages();
                     this.updateMapMarker(0);
                 }
             });
@@ -39,7 +55,11 @@ document.addEventListener('alpine:init', () => {
                 if (index !== null) {
                     this.updateHoverStats(index);
                     this.updateMapMarker(index);
-                    if (this.mainChart) this.mainChart.draw();
+                    if (this.mainChart) Alpine.raw(this.mainChart).draw();
+                } else {
+                    // Hover ended -> fall back to active segment averages (Task 1.2)
+                    this.updateHoverStatsToSegmentAverages();
+                    if (this.mainChart) Alpine.raw(this.mainChart).draw();
                 }
             });
         },
@@ -51,19 +71,51 @@ document.addEventListener('alpine:init', () => {
         initWorkspaceMap() {
             if (this.map) return;
 
-            this.map = L.map('workspace-map', {
+            const map = L.map('workspace-map', {
                 zoomControl: false,
                 attributionControl: false
             }).setView([0, 0], 2);
+            // Assign to the reactive property, but keep a raw local reference for
+            // all method calls so Alpine's proxy never interferes with Leaflet.
+            this.map = map;
+            const rawMap = Alpine.raw(this.map);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.map);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(rawMap);
 
             const points = Alpine.store('app').activePoints;
 
             if (points && points.length > 0) {
+                // Plain (non-proxied) latlng array — never hand Alpine-proxied
+                // objects to Leaflet.
                 const latlngs = points.map(p => [p.lat, p.lon]);
-                this.polyline = L.polyline(latlngs, { color: '#0062ff', weight: 4 }).addTo(this.map);
-                this.map.fitBounds(this.polyline.getBounds());
+
+                // Task 3.1: Initialize dual polyline layers.
+                // backgroundPolyline: thin, muted, low z-index — shows full route context.
+                const bg = L.polyline(latlngs, {
+                    color: '#6c757d',
+                    weight: 3,
+                    opacity: 0.55,
+                    lineJoin: 'round',
+                    lineCap: 'round',
+                    interactive: false
+                }).addTo(rawMap);
+                this.backgroundPolyline = bg;
+
+                // highlightedPolyline: bold, high-visibility, high z-index — shows active subset.
+                const hl = L.polyline(latlngs, {
+                    color: '#0062ff',
+                    weight: 6,
+                    opacity: 1,
+                    lineJoin: 'round',
+                    lineCap: 'round',
+                    interactive: false
+                }).addTo(rawMap);
+                this.highlightedPolyline = hl;
+
+                // Bring foreground explicitly above background.
+                Alpine.raw(this.highlightedPolyline).bringToFront();
+
+                rawMap.fitBounds(Alpine.raw(this.backgroundPolyline).getBounds());
 
                 this.marker = L.circleMarker(latlngs[0], {
                     radius: 8,
@@ -71,7 +123,11 @@ document.addEventListener('alpine:init', () => {
                     color: '#fff',
                     weight: 2,
                     fillOpacity: 1
-                }).addTo(this.map);
+                }).addTo(rawMap);
+
+                // Sync the highlighted layer to the initial zoom range.
+                const { start, end } = Alpine.store('app').zoomRange;
+                this.updateHighlightedPolyline(start, end);
             }
         },
 
@@ -149,6 +205,20 @@ document.addEventListener('alpine:init', () => {
                     }
                 }]
             });
+
+            // Task 1.2: When the cursor leaves the main chart, reset the stats
+            // banner back to the active segment averages (hover fallback).
+            const mainCanvas = document.getElementById('workspace-chart-main');
+            mainCanvas.addEventListener('mouseleave', () => {
+                Alpine.store('app').hoveredTrackpoint = null;
+            });
+            // On touch devices, tap-and-leave should also fall back. pointerleave
+            // covers both mouse and touch scenarios.
+            mainCanvas.addEventListener('pointerleave', () => {
+                if (Alpine.store('app').hoveredTrackpoint !== null) {
+                    Alpine.store('app').hoveredTrackpoint = null;
+                }
+            });
         },
 
         createSliderChart(data, type) {
@@ -173,6 +243,7 @@ document.addEventListener('alpine:init', () => {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: false,
                     scales: {
                         x: { type: 'linear', display: false },
                         y: { type: 'linear', display: false }
@@ -207,58 +278,101 @@ document.addEventListener('alpine:init', () => {
                         ctx.lineTo(xEnd, chart.chartArea.bottom);
                         ctx.stroke();
 
-                        // Handles
-                        ctx.fillStyle = '#0062ff';
-                        ctx.fillRect(xStart - 4, chart.chartArea.top + (chart.chartArea.height/2) - 10, 8, 20);
-                        ctx.fillRect(xEnd - 4, chart.chartArea.top + (chart.chartArea.height/2) - 10, 8, 20);
+                        // Handles — drawn larger for better mobile visibility (Task 2.3).
+                        // The actual touch target is enlarged separately in pointer hit
+                        // detection (HIT_RADIUS_PX) to reach a 44px physical target.
+                        const handleW = 14;
+                        const handleH = Math.min(32, chart.chartArea.height - 4);
+                        const handleY = chart.chartArea.top + (chart.chartArea.height / 2) - (handleH / 2);
+                        const handleRadius = 3;
+                        const drawHandle = (cx) => {
+                            const x = cx - handleW / 2;
+                            ctx.fillStyle = '#0062ff';
+                            ctx.beginPath();
+                            ctx.moveTo(x + handleRadius, handleY);
+                            ctx.arcTo(x + handleW, handleY, x + handleW, handleY + handleH, handleRadius);
+                            ctx.arcTo(x + handleW, handleY + handleH, x, handleY + handleH, handleRadius);
+                            ctx.arcTo(x, handleY + handleH, x, handleY, handleRadius);
+                            ctx.arcTo(x, handleY, x + handleW, handleY, handleRadius);
+                            ctx.closePath();
+                            ctx.fill();
+                            // Grip lines for affordance
+                            ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+                            ctx.lineWidth = 1.5;
+                            ctx.beginPath();
+                            ctx.moveTo(cx - 2, handleY + 6);
+                            ctx.lineTo(cx - 2, handleY + handleH - 6);
+                            ctx.moveTo(cx + 2, handleY + 6);
+                            ctx.lineTo(cx + 2, handleY + handleH - 6);
+                            ctx.stroke();
+                        };
+                        drawHandle(xStart);
+                        drawHandle(xEnd);
 
                         ctx.restore();
                     }
                 }]
             });
 
-            // Interaction logic
+            // Task 2.3: Hit radius for grab handles. A radius of 22px yields a 44px
+            // physical touch target diameter, meeting mobile accessibility guidance.
+            const HIT_RADIUS_PX = 22;
+
+            // Helper: which drag zone is the cursor over?
+            // NOTE: access the slider chart via Alpine.raw() to bypass Alpine's
+            // reactive proxy — Chart.js's internal property accessors recurse
+            // when invoked through the proxy, causing stack overflow.
+            const hitTest = (x) => {
+                const slider = Alpine.raw(this.sliderChart);
+                const {start, end} = Alpine.store('app').zoomRange;
+                const xStart = slider.scales.x.getPixelForValue(slider.data.datasets[0].data[start].x);
+                const xEnd = slider.scales.x.getPixelForValue(slider.data.datasets[0].data[end].x);
+                if (Math.abs(x - xStart) <= HIT_RADIUS_PX) return 'start';
+                if (Math.abs(x - xEnd) <= HIT_RADIUS_PX) return 'end';
+                if (x > xStart && x < xEnd) return 'pan';
+                return null;
+            };
+
             canvas.addEventListener('pointerdown', (e) => {
                 const rect = canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
-                const value = this.sliderChart.scales.x.getValueForPixel(x);
-
-                // Find nearest index
+                const slider = Alpine.raw(this.sliderChart);
+                const value = slider.scales.x.getValueForPixel(x);
                 const index = this.findNearestIndex(value);
-                const {start, end} = Alpine.store('app').zoomRange;
 
-                const xStart = this.sliderChart.scales.x.getPixelForValue(this.sliderChart.data.datasets[0].data[start].x);
-                const xEnd = this.sliderChart.scales.x.getPixelForValue(this.sliderChart.data.datasets[0].data[end].x);
-
-                if (Math.abs(x - xStart) < 15) {
+                const zone = hitTest(x);
+                if (zone === 'start') {
                     this.isDragging = true;
                     this.dragType = 'start';
-                } else if (Math.abs(x - xEnd) < 15) {
+                } else if (zone === 'end') {
                     this.isDragging = true;
                     this.dragType = 'end';
-                } else if (x > xStart && x < xEnd) {
+                } else if (zone === 'pan') {
                     this.isDragging = true;
                     this.dragType = 'pan';
+                    const {start} = Alpine.store('app').zoomRange;
                     this.dragOffset = index - start;
                 } else {
-                    // Jump to click
+                    // Jump to click — apply immediately (no drag).
                     this.updateZoomFromSlider(index);
                 }
-                canvas.setPointerCapture(e.pointerId);
+
+                if (this.isDragging) {
+                    this._draggingActive = true;
+                    canvas.setPointerCapture(e.pointerId);
+                }
             });
 
             canvas.addEventListener('pointermove', (e) => {
-                if (!this.isDragging) {
-                    // Update cursor
-                    const rect = canvas.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const {start, end} = Alpine.store('app').zoomRange;
-                    const xStart = this.sliderChart.scales.x.getPixelForValue(this.sliderChart.data.datasets[0].data[start].x);
-                    const xEnd = this.sliderChart.scales.x.getPixelForValue(this.sliderChart.data.datasets[0].data[end].x);
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
 
-                    if (Math.abs(x - xStart) < 15 || Math.abs(x - xEnd) < 15) {
+                if (!this.isDragging) {
+                    // Update cursor affordance only.
+                    const zone = hitTest(x);
+                    if (zone === 'start' || zone === 'end') {
                         canvas.style.cursor = 'ew-resize';
-                    } else if (x > xStart && x < xEnd) {
+                    } else if (zone === 'pan') {
                         canvas.style.cursor = 'grab';
                     } else {
                         canvas.style.cursor = 'default';
@@ -266,9 +380,9 @@ document.addEventListener('alpine:init', () => {
                     return;
                 }
 
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const value = this.sliderChart.scales.x.getValueForPixel(x);
+                // Compute the new bounds from the pointer position.
+                const slider = Alpine.raw(this.sliderChart);
+                const value = slider.scales.x.getValueForPixel(x);
                 const index = this.findNearestIndex(value);
                 const dataLength = Alpine.store('app').activeProcessedData.length;
                 let {start, end} = Alpine.store('app').zoomRange;
@@ -285,16 +399,31 @@ document.addEventListener('alpine:init', () => {
                     end = start + windowSize;
                 }
 
-                Alpine.store('app').zoomRange = { start, end };
-                this.updateMainChart();
-                this.sliderChart.draw();
+                // Task 2.1: throttle the expensive main-chart redraw via rAF
+                // instead of updating on every pointermove event. The slider
+                // overlay itself is cheap (single draw()) so we redraw it
+                // immediately for responsive handle feedback.
+                this.scheduleZoomUpdate(start, end);
+                Alpine.raw(this.sliderChart).draw();
             });
 
-            canvas.addEventListener('pointerup', (e) => {
+            const endDrag = (e) => {
+                if (!this.isDragging) return;
                 this.isDragging = false;
                 this.dragType = null;
-                canvas.releasePointerCapture(e.pointerId);
-            });
+                this._draggingActive = false;
+                try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+                // Task 2.1: guarantee the final position is always processed
+                // (drag end / touchend / mouseup) for accuracy.
+                this.flushZoomUpdate();
+            };
+
+            canvas.addEventListener('pointerup', endDrag);
+            canvas.addEventListener('pointercancel', endDrag);
+
+            // Task 2.3: prevent the browser from interpreting touch drags on the
+            // slider as scroll/pinch gestures so mobile fingers can grab handles.
+            canvas.style.touchAction = 'none';
         },
 
         findNearestIndex(xValue) {
@@ -323,13 +452,61 @@ document.addEventListener('alpine:init', () => {
                 end = dataLength - 1;
                 start = end - windowSize;
             }
+            if (start < 0) start = 0;
 
-            Alpine.store('app').zoomRange = { start, end };
-            this.updateMainChart();
-            this.sliderChart.draw();
+            // A click-jump is a discrete action; flush immediately for snappy UX.
+            this.scheduleZoomUpdate(start, end);
+            this.flushZoomUpdate();
         },
 
-        updateMainChart() {
+        // --- Task 2.1: rAF-based throttling for main chart updates ---
+        /**
+         * Stage a new zoom range and request a single animation frame to apply it.
+         * Multiple pointermove events within the same frame coalesce into one
+         * main-chart redraw.
+         */
+        scheduleZoomUpdate(start, end) {
+            this._pendingZoomRange = { start, end };
+            if (this._rafId !== null) return;
+            this._rafId = requestAnimationFrame(() => {
+                this._rafId = null;
+                this.flushZoomUpdate();
+            });
+        },
+
+        /**
+         * Apply the pending zoom range (if any) to the store, main chart, slider
+         * overlay, and highlighted polyline. Safe to call when nothing is pending.
+         */
+        flushZoomUpdate() {
+            // Cancel any pending rAF callback — we are flushing synchronously now.
+            if (this._rafId !== null) {
+                cancelAnimationFrame(this._rafId);
+                this._rafId = null;
+            }
+            const pending = this._pendingZoomRange;
+            this._pendingZoomRange = null;
+            if (!pending) return;
+
+            // Skip no-op updates (same bounds as last flush).
+            const last = this._lastFlushedZoom;
+            if (last && last.start === pending.start && last.end === pending.end) {
+                return;
+            }
+
+            Alpine.store('app').zoomRange = { start: pending.start, end: pending.end };
+            this._lastFlushedZoom = { start: pending.start, end: pending.end };
+
+            // Task 2.2: during active dragging, disable full-fidelity rendering
+            // (animations / heavy recomputation). animation:false is already set
+            // globally; passing 'none' to update() also skips layout transitions.
+            this.updateMainChart(!this._draggingActive);
+            this.updateHighlightedPolyline(pending.start, pending.end);
+            if (this.sliderChart) Alpine.raw(this.sliderChart).draw();
+        },
+
+        updateMainChart(animate) {
+            if (!this.mainChart) return;
             const {start, end} = Alpine.store('app').zoomRange;
             const data = Alpine.store('app').activeProcessedData;
             const type = Alpine.store('app').activeChartType;
@@ -337,8 +514,41 @@ document.addEventListener('alpine:init', () => {
             const slicedData = data.slice(start, end + 1);
             const datasets = this.getDatasetsForType(slicedData, type);
 
-            this.mainChart.data.datasets = datasets;
-            this.mainChart.update();
+            // Access the chart via Alpine.raw() to avoid the reactive proxy.
+            // Assigning proxied arrays / calling update() through the proxy
+            // triggers infinite recursion inside Chart.js's own property
+            // accessors (the Alpine proxy and Chart.js's internal proxy
+            // re-enter each other). Deep-cloning the datasets also ensures no
+            // Alpine-proxied objects leak into Chart.js's data tree.
+            const chart = Alpine.raw(this.mainChart);
+            chart.data.datasets = JSON.parse(JSON.stringify(datasets));
+            if (animate === false) {
+                chart.update('none');
+            } else {
+                chart.update();
+            }
+        },
+
+        // --- Task 3.2: sync highlighted polyline to scrubber bounds ---
+        /**
+         * Slice the full coordinate array to the active [start, end] window and
+         * update the foreground polyline in place. Covered by the same rAF
+         * throttling as the chart updates because flushZoomUpdate() is the only
+         * caller during dragging.
+         */
+        updateHighlightedPolyline(start, end) {
+            if (!this.highlightedPolyline) return;
+            const points = Alpine.store('app').activePoints;
+            if (!points || points.length === 0) return;
+
+            const s = Math.max(0, Math.min(start, points.length - 1));
+            const e = Math.max(s, Math.min(end, points.length - 1));
+            // Build a plain (non-proxied) array of plain [lat, lon] arrays so
+            // Leaflet never receives an Alpine-proxied object.
+            const activeCoords = points.slice(s, e + 1).map(p => [p.lat, p.lon]);
+            if (activeCoords.length > 0) {
+                Alpine.raw(this.highlightedPolyline).setLatLngs(activeCoords);
+            }
         },
 
         getDatasetsForType(data, type) {
@@ -409,15 +619,17 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
+        // Task 1.2: update banner metrics from a specific hovered trackpoint.
         updateHoverStats(index) {
             const data = Alpine.store('app').activeProcessedData;
             const d = data[index];
             if (!d) return;
 
             this.hoverStats.distance = d.dist.toFixed(2) + ' km';
-            this.hoverStats.pace = window.gpxUtils.formatPace(d.smoothedPace);
+            this.hoverStats.pace = window.gpx_utils.formatPace(d.smoothedPace);
+            this.hoverStats.gap = window.gpx_utils.formatPace(d.smoothedGap);
 
-            // Calculate grade
+            // Calculate grade (kept for completeness / potential future use).
             let grade = 0;
             if (index > 0) {
                 const dd = (data[index].dist - data[index-1].dist) * 1000;
@@ -425,14 +637,60 @@ document.addEventListener('alpine:init', () => {
                 if (dd > 0) grade = (de / dd) * 100;
             }
             this.hoverStats.grade = grade.toFixed(1) + '%';
-            this.hoverStats.elevation = d.ele.toFixed(0) + ' m';
+            this.hoverStats.elevation = d.ele != null ? d.ele.toFixed(0) + ' m' : '—';
+        },
+
+        // Task 1.2 fallback: when the user is not hovering, show the average
+        // metrics across the currently selected (scrubber) segment.
+        updateHoverStatsToSegmentAverages() {
+            const data = Alpine.store('app').activeProcessedData;
+            if (!data || data.length === 0) return;
+            const { start, end } = Alpine.store('app').zoomRange;
+            const s = Math.max(0, Math.min(start, data.length - 1));
+            const e = Math.max(s, Math.min(end, data.length - 1));
+            const slice = data.slice(s, e + 1);
+            if (slice.length === 0) return;
+
+            // Distance span of the active segment.
+            const distStart = slice[0].dist;
+            const distEnd = slice[slice.length - 1].dist;
+            this.hoverStats.distance = (distEnd - distStart).toFixed(2) + ' km';
+
+            // Average pace / GAP across the segment (ignore zero/invalid samples).
+            let paceSum = 0, gapSum = 0, paceCount = 0;
+            let eleMin = Infinity, eleMax = -Infinity;
+            for (const d of slice) {
+                if (d.smoothedPace > 0 && d.smoothedPace < 20) {
+                    paceSum += d.smoothedPace;
+                    paceCount++;
+                }
+                if (d.smoothedGap > 0 && d.smoothedGap < 20) {
+                    gapSum += d.smoothedGap;
+                }
+                if (d.ele != null) {
+                    if (d.ele < eleMin) eleMin = d.ele;
+                    if (d.ele > eleMax) eleMax = d.ele;
+                }
+            }
+            const avgPace = paceCount > 0 ? paceSum / paceCount : 0;
+            const avgGap = paceCount > 0 ? gapSum / paceCount : 0;
+            this.hoverStats.pace = window.gpx_utils.formatPace(avgPace);
+            this.hoverStats.gap = window.gpx_utils.formatPace(avgGap);
+
+            // Show elevation range (min–max) of the active segment.
+            if (eleMin !== Infinity) {
+                this.hoverStats.elevation = eleMin.toFixed(0) + '–' + eleMax.toFixed(0) + ' m';
+            } else {
+                this.hoverStats.elevation = '—';
+            }
+            this.hoverStats.grade = '—';
         },
 
         initResizeObserver() {
             this.resizeObserver = new ResizeObserver(() => {
-                if (this.mainChart) this.mainChart.resize();
-                if (this.sliderChart) this.sliderChart.resize();
-                if (this.map) this.map.invalidateSize();
+                if (this.mainChart) Alpine.raw(this.mainChart).resize();
+                if (this.sliderChart) Alpine.raw(this.sliderChart).resize();
+                if (this.map) Alpine.raw(this.map).invalidateSize();
             });
             this.resizeObserver.observe(document.getElementById('fullscreen-analysis-workspace'));
         },
@@ -443,29 +701,40 @@ document.addEventListener('alpine:init', () => {
             if (!p || !this.marker) return;
 
             const latlng = [p.lat, p.lon];
-            this.marker.setLatLng(latlng);
+            const map = Alpine.raw(this.map);
+            const marker = Alpine.raw(this.marker);
+            marker.setLatLng(latlng);
 
             // Pan map if marker goes out of bounds, throttled to 100ms
             const now = Date.now();
             if (now - this.lastPanTime > 100) {
-                if (!this.map.getBounds().contains(latlng)) {
-                    this.map.panTo(latlng);
+                if (!map.getBounds().contains(latlng)) {
+                    map.panTo(latlng);
                     this.lastPanTime = now;
                 }
             }
         },
 
         destroy() {
+            // Cancel any pending throttled frame so it can't fire after teardown.
+            if (this._rafId !== null) {
+                cancelAnimationFrame(this._rafId);
+                this._rafId = null;
+            }
+            this._pendingZoomRange = null;
+            this._lastFlushedZoom = null;
+            this._draggingActive = false;
+
             if (this.mainChart) {
-                this.mainChart.destroy();
+                Alpine.raw(this.mainChart).destroy();
                 this.mainChart = null;
             }
             if (this.sliderChart) {
-                this.sliderChart.destroy();
+                Alpine.raw(this.sliderChart).destroy();
                 this.sliderChart = null;
             }
             if (this.map) {
-                this.map.remove();
+                Alpine.raw(this.map).remove();
                 this.map = null;
             }
             if (this.resizeObserver) {
@@ -473,7 +742,8 @@ document.addEventListener('alpine:init', () => {
                 this.resizeObserver = null;
             }
             this.marker = null;
-            this.polyline = null;
+            this.backgroundPolyline = null;
+            this.highlightedPolyline = null;
             this.isInitialized = false;
             Alpine.store('app').hoveredTrackpoint = null;
         }

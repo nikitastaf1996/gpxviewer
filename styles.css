@@ -797,6 +797,39 @@ canvas {
     padding: 0.5rem;
     box-shadow: var(--shadow-sm);
     position: relative;
+    /* Task 2.3: ensure the slider zone is tall enough to host a 44px touch
+       target for the drag handles. */
+    min-height: 72px;
+}
+
+/* Task 2.3: Touch target sizing + gesture isolation for the scrubber.
+   - touch-action: none stops the browser from hijacking horizontal drags as
+     page scroll / pinch-zoom, so a finger can reliably grab a handle.
+   - The transparent padding below extends the tappable area around the canvas
+     so that even near the top/bottom edges a 44px+ touch target is available. */
+#workspace-chart-slider {
+    touch-action: none;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* Pointer-friendlier hit area: the container itself acts as a transparent
+   "gutter" so a finger landing just outside the canvas still registers on the
+   nearest handle via the extended hit radius in workspace.js (HIT_RADIUS_PX). */
+.workspace-slider-chart-container::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none; /* let the canvas receive the actual pointer events */
+}
+
+/* On coarse pointers (touch), enlarge the slider a touch and lift the hit
+   area to guarantee ≥44px vertical grab zone. */
+@media (pointer: coarse) {
+    .workspace-slider-chart-container {
+        min-height: 88px;
+    }
 }
 
 /* Landscape Mode for Workspace */

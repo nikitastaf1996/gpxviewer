@@ -6,12 +6,12 @@
     <meta name="theme-color" content="#333333">
     <title>Simple GPX Viewer</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link href='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css' rel='stylesheet' />
+    <link rel="stylesheet" href="./vendor/leaflet/leaflet.css" />
+    <link href='./vendor/leaflet-fullscreen/leaflet.fullscreen.css' rel='stylesheet' />
     <link rel="stylesheet" href="./styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="./vendor/jszip/jszip.min.js"></script>
+    <script defer src="./vendor/alpine/collapse.min.js"></script>
+    <script defer src="./vendor/alpine/cdn.min.js"></script>
 </head>
 <body x-data>
 
@@ -487,12 +487,13 @@
     <span x-text="message"></span>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js'></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/2.1.0/gpx.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="./vendor/leaflet/leaflet.js"></script>
+<script src='./vendor/leaflet-fullscreen/Leaflet.fullscreen.min.js'></script>
+<script src="./vendor/leaflet-gpx/gpx.min.js"></script>
+<script src="./vendor/chartjs/chart.umd.min.js"></script>
 <script src="./js/db.js"></script>
 <script src="./js/gpx-utils.js"></script>
+<script src="./js/offline-tiles.js"></script>
 <script src="./js/geocoder.js"></script>
 <script src="./js/store.js"></script>
 <script src="./js/components/analyze.js"></script>

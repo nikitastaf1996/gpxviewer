@@ -13,7 +13,7 @@ document.addEventListener('alpine:init', () => {
             this.map = L.map('map', {
                 fullscreenControl: true
             }).setView([0, 0], 2);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            L.tileLayer.offline('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(this.map);
 
@@ -69,9 +69,9 @@ document.addEventListener('alpine:init', () => {
             this.currentTrack = new L.GPX(gpxData, {
                 async: true,
                 marker_options: {
-                    startIconUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-icon-start.png',
-                    endIconUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-icon-end.png',
-                    shadowUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-shadow.png'
+                    startIconUrl: './vendor/leaflet-gpx/pin-icon-start.png',
+                    endIconUrl: './vendor/leaflet-gpx/pin-icon-end.png',
+                    shadowUrl: './vendor/leaflet-gpx/pin-shadow.png'
                 }
             }).on('loaded', (e) => {
                 const gpx = e.target;

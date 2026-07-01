@@ -83,7 +83,7 @@ document.addEventListener('alpine:init', () => {
             this.map = map;
             const rawMap = Alpine.raw(this.map);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(rawMap);
+            L.tileLayer.offline('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(rawMap);
 
             const points = Alpine.store('app').activePoints;
 

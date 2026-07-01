@@ -39,25 +39,34 @@ const CRITICAL_ASSETS = [
     './js/offline-tiles.js',
     './manifest.json',
     './icon-192.png',
-    './icon-512.png'
+    './icon-512.png',
+    // Vendored third-party libraries — now local, so always available offline.
+    './vendor/leaflet/leaflet.css',
+    './vendor/leaflet/leaflet.js',
+    './vendor/leaflet/images/marker-icon.png',
+    './vendor/leaflet/images/marker-icon-2x.png',
+    './vendor/leaflet/images/marker-shadow.png',
+    './vendor/leaflet/images/layers.png',
+    './vendor/leaflet/images/layers-2x.png',
+    './vendor/leaflet-fullscreen/leaflet.fullscreen.css',
+    './vendor/leaflet-fullscreen/Leaflet.fullscreen.min.js',
+    './vendor/leaflet-fullscreen/fullscreen.png',
+    './vendor/leaflet-fullscreen/fullscreen@2x.png',
+    './vendor/leaflet-gpx/gpx.min.js',
+    './vendor/leaflet-gpx/pin-icon-start.png',
+    './vendor/leaflet-gpx/pin-icon-end.png',
+    './vendor/leaflet-gpx/pin-shadow.png',
+    './vendor/chartjs/chart.umd.min.js',
+    './vendor/jszip/jszip.min.js',
+    './vendor/alpine/cdn.min.js',
+    './vendor/alpine/collapse.min.js'
 ];
 
 // Cross-origin CDN assets — best-effort. Tolerate individual failures so a
 // single flaky CDN edge doesn't permanently disable offline mode.
-const CDN_ASSETS = [
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-    'https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css',
-    'https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/2.1.0/gpx.min.js',
-    'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
-    'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js',
-    'https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js',
-    'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-icon-start.png',
-    'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-icon-end.png',
-    'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-shadow.png'
-];
+// (Currently empty since all third-party deps are vendored locally. Kept as
+// a list so future cross-origin resources can be added without restructuring.)
+const CDN_ASSETS = [];
 
 self.addEventListener('install', (event) => {
     console.log('SW install event');
@@ -97,6 +106,22 @@ self.addEventListener('fetch', (event) => {
 
     const url = new URL(req.url);
     const sameOrigin = url.origin === self.location.origin;
+
+    // Never let the SW intercept:
+    //   - Nominatim reverse-geocoding requests (per-coordinate, freshness matters,
+    //     Nominatim usage policy discourages aggressive caching, and Playwright
+    //     page.route mocks won't fire if the SW grabs these first).
+    //   - OSM map tile requests (handled by the OfflineTileLayer's own IndexedDB
+    //     cache in offline-tiles.js; SW interception would bypass that layer and
+    //     also break Playwright mocks for tile fetches in tests).
+    //   - Any request that explicitly opts out via a `x-skip-sw` header.
+    const isNominatim = url.hostname === 'nominatim.openstreetmap.org';
+    const isOsmTile = url.hostname.endsWith('.tile.openstreetmap.org');
+    if (isNominatim || isOsmTile) {
+        // Let the browser handle it directly — the OfflineTileLayer caches
+        // tiles in IndexedDB; the geocoder just calls fetch().
+        return;
+    }
 
     if (sameOrigin) {
         // Stale-while-revalidate.

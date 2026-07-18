@@ -8,6 +8,13 @@ window.gpxUtils = {
     // charted pace/GAP series and from pace averages.
     MAX_VALID_PACE_MIN_PER_KM: 20,
 
+    // Two consecutive trackpoints spaced further apart than this (in ms) are
+    // treated as a pause (traffic light, water break, GPS dropout). Their
+    // elapsed time is excluded from "moving time" but kept in "total time".
+    // Value mirrors Leaflet.GPX's _MAX_POINT_INTERVAL_MS so the library card
+    // and the analyse tab agree on what counts as moving.
+    MAX_POINT_INTERVAL_MS: 15000,
+
     calculateCalories(distKm, weightKg) {
         return Math.round((distKm || 0) * (weightKg || 70) * this.CALORIES_PER_KM_PER_KG);
     },
@@ -21,6 +28,16 @@ window.gpxUtils = {
         const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
         const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    },
+
+    // 3D distance between two points: 2D Haversine combined with the
+    // elevation delta. This MUST match Leaflet.GPX's _dist3d, otherwise the
+    // library card (which uses parseGpxMetadata) and the analyse tab (which
+    // uses gpx.get_distance()) drift apart on hilly runs.
+    calculateDistance3D(lat1, lon1, ele1, lat2, lon2, ele2) {
+        const d2 = this.calculateDistance(lat1, lon1, lat2, lon2);
+        const dEle = Math.abs((ele2 || 0) - (ele1 || 0));
+        return Math.sqrt(d2 * d2 + dEle * dEle);
     },
 
     formatDuration(ms) {
@@ -52,25 +69,54 @@ window.gpxUtils = {
         const startTime = firstPt.getElementsByTagName("time")[0] ? new Date(firstPt.getElementsByTagName("time")[0].textContent) : new Date();
         const endTime = lastPt.getElementsByTagName("time")[0] ? new Date(lastPt.getElementsByTagName("time")[0].textContent) : startTime;
 
+        // IMPORTANT: distance and time are accumulated the same way Leaflet.GPX
+        // does it in its _parse_segment, so that the library card / lifetime
+        // stats (which read from this metadata) and the analyse tab (which
+        // reads from gpx.get_distance() / gpx.get_total_time()) stay in sync.
+        //
+        //   - Distance: 3D distance (2D Haversine + elevation delta), matching
+        //     Leaflet.GPX._dist3d.
+        //   - Total time: sum of |time[i] - time[i-1]|, matching
+        //     Leaflet.GPX._info.duration.total.
+        //   - Moving time: sum of |Δt| for intervals shorter than
+        //     MAX_POINT_INTERVAL_MS, matching Leaflet.GPX._info.duration.moving.
         let totalDist = 0;
-        for (let i = 1; i < trkpts.length; i++) {
-            const p1 = trkpts[i-1];
-            const p2 = trkpts[i];
-            totalDist += this.calculateDistance(
-                parseFloat(p1.getAttribute("lat")), parseFloat(p1.getAttribute("lon")),
-                parseFloat(p2.getAttribute("lat")), parseFloat(p2.getAttribute("lon"))
-            );
+        let totalTimeMs = 0;
+        let movingTimeMs = 0;
+        let prev = null;
+
+        for (let i = 0; i < trkpts.length; i++) {
+            const pt = trkpts[i];
+            const lat = parseFloat(pt.getAttribute("lat"));
+            const lon = parseFloat(pt.getAttribute("lon"));
+            const eleNode = pt.getElementsByTagName("ele")[0];
+            const ele = eleNode ? parseFloat(eleNode.textContent) : null;
+            const timeNode = pt.getElementsByTagName("time")[0];
+            const time = timeNode ? new Date(timeNode.textContent) : null;
+
+            if (prev && prev.time && time) {
+                const dt = Math.abs(time - prev.time);
+                totalDist += this.calculateDistance3D(prev.lat, prev.lon, prev.ele, lat, lon, ele);
+                totalTimeMs += dt;
+                if (dt < this.MAX_POINT_INTERVAL_MS) {
+                    movingTimeMs += dt;
+                }
+            }
+            prev = { lat, lon, ele, time };
         }
 
         const distKm = totalDist / 1000;
-        const durationMs = endTime - startTime;
+        const durationMs = totalTimeMs;
         const paceMinPerKm = distKm > 0 ? (durationMs / 1000 / 60) / distKm : 0;
+        const movingPaceMinPerKm = distKm > 0 ? (movingTimeMs / 1000 / 60) / distKm : 0;
 
         return {
             date: startTime,
             distance: distKm,
             duration: durationMs,
+            movingTime: movingTimeMs,
             avgPace: paceMinPerKm,
+            movingPace: movingPaceMinPerKm,
             lat: parseFloat(firstPt.getAttribute("lat")),
             lon: parseFloat(firstPt.getAttribute("lon"))
         };
